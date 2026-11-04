@@ -362,10 +362,12 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | 16x32 font | `FONT_XL` | 6,352* | — | Only useful at 240 px and wider (MD-380 is 160 px). Anti-aliased on the DM-32 (7.4 KB of glyphs) |
 | Anti-aliased fonts | `FONT_AA` | 3,004* | — | Smooth text on color panels (measured 2026-10-17); the DM-32's image grew 9.5 KB with it and `FONT_XL` |
 | Larger text | `FONT_BIG` | — | — | 9x18 lists and labels on 240 px color panels (needs `FONT_AA`); 3,588 B on the DM-32 (measured 2026-10-17) |
+| 16x16 CJK subset font | `FONT_CJK` | — | — | The characters the Chinese catalog draws (Noto Sans CJK SC, OFL-1.1), one byte a pixel; about 32 bytes per character |
 | Spanish on the radio | `LANG_ES` | 28,456 | 28,348 | The first language brings the lookup and the accented letters of every font (about 7.5 KB); the rest is its text. Measured 2026-10-31 |
 | Italian on the radio | `LANG_IT` | 17,304 | 17,304 | Off by default; measured with Spanish on (its text, and the hashes of strings Spanish leaves untranslated). Alone it costs about as much as Spanish |
 | Start in Spanish | `LANG_DEFAULT_ES` | 0 | 0 | The language the radio starts in until the user picks one (needs `LANG_ES`); the web flasher sets it from its Radio language choice |
 | Start in Italian | `LANG_DEFAULT_IT` | 0 | 0 | As `LANG_DEFAULT_ES` (needs `LANG_IT`) |
+| Start in Chinese | `LANG_DEFAULT_ZH` | 0 | 0 | As `LANG_DEFAULT_ES` (needs `LANG_ZH`) |
 | Simplified Chinese on the radio | `LANG_ZH` | — | — | The multi-byte renderer and the 16x16 CJK subset (`FONT_CJK`, Noto Sans CJK SC) with the catalog's text; needs `FONT_CJK`. The subset is one byte a pixel, about 32 bytes per character |
 
 ## Storage

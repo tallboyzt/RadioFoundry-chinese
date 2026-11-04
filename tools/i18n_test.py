@@ -119,8 +119,8 @@ class Catalogs(unittest.TestCase):
             _, body = i18n.read_po(i18n.catalogs()[code])
             for msgid, msgstr, fz in body:
                 en = i18n.text_to_bytes(msgid, msgid)
-                usable = msgstr and not fz and not i18n.check_translation(msgid, msgstr, msgid)
-                want = i18n.text_to_bytes(msgstr, msgid) if usable else None
+                usable = msgstr and not fz and not i18n.check_translation(msgid, msgstr, msgid, code)
+                want = i18n.text_to_bytes(msgstr, msgid, code) if usable else None
                 self.assertEqual(i18n.lookup(keys, blob, offs, en), None if want == en else want, (code, msgid))
 
 

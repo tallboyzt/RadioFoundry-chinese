@@ -614,7 +614,7 @@ void gfx_text_fit(const font_t *f, const char *src, int max_w, char *out, size_t
 	if (head_i > tail_i)
 		head_i = tail_i;	// the start and the end would overlap: keep the end
 	// Drop from the longer side until the result fits the caller's buffer
-	while (off[head_i] + 1 + (off[n] - off[tail_i]) + 1 > out_len && (head_i > 0 || tail_i < n)) {
+	while ((size_t)off[head_i] + 1 + (off[n] - off[tail_i]) + 1 > out_len && (head_i > 0 || tail_i < n)) {
 		if (off[head_i] >= off[n] - off[tail_i] || tail_i == n)
 			head_i--;
 		else
