@@ -2423,7 +2423,14 @@ int ui_draw_text_page(const radio_view_t *v, const ui_state_t *s, const char *ti
 static void fit_end(const font_t *f, const char *s, int max_w, char *out, size_t len)
 {
 	if (gfx_text_width(f, s) <= max_w) {
-		str_copy(out, len, s);
+		size_t n = strlen(s);
+		if (n > len - 1) {
+			n = len - 1;	// the caller's buffer is small: cut at a character boundary, not mid-character
+			while (n > 0 && ((uint8_t)s[n] & 0xC0u) == 0x80u)
+				n--;
+		}
+		memcpy(out, s, n);
+		out[n] = 0;
 		return;
 	}
 	size_t nbytes = 0, nchars = 0, space_byte = 0, space_char = 0;

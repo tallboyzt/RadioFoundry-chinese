@@ -462,6 +462,12 @@ static void test_cjk_text(void)
 	CHECK(g.advance == 2 * f->w && g.bits != NULL);
 	CHECK(gfx_text_width(f, "中A文") == 5 * f->w);
 
+	// A fullwidth form (i18n.py's cjk_drawable allows it) is a 2-cell glyph too, not a box
+	p = "，";
+	font_glyph_utf8(f, &p, &g);
+	CHECK(g.advance == 2 * f->w && g.bits != NULL && g.bpp == 1);
+	CHECK(gfx_text_width(f, "，，") == 4 * f->w);
+
 	// The renderer draws a 16x16 CJK glyph across two 8x16 cells, ink from the subset
 	hal_display_t d = disp;
 	d.width = 160; d.height = 120; d.bpp = 16;

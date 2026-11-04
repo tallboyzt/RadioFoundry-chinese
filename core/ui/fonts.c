@@ -156,8 +156,9 @@ void font_glyph_utf8(const font_t *f, const char **p, font_glyph_utf8_t *g)
 		cp = (cp << 6) | (s[i] & 0x3Fu);
 	}
 	*p = (const char *)(s + len);
-	// A CJK character: a full-width cell from the font's CJK subset, or a box (bits == NULL) for one it lacks
-	if (f->cjk && cp >= 0x3000 && cp <= 0x9FFF) {
+	// A CJK character or a fullwidth form: a full-width cell from the font's CJK subset, or a box (bits == NULL) for
+	// one it lacks (the same range i18n.py's cjk_drawable allows)
+	if (f->cjk && ((cp >= 0x3000 && cp <= 0x9FFF) || (cp >= 0xFF00 && cp <= 0xFFEF))) {
 		g->w = f->cjk->w;
 		g->h = f->cjk->h;
 		g->bpp = f->cjk->bpp;
