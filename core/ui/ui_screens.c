@@ -2292,21 +2292,37 @@ static int list_bottom(const ui_state_t *s)
 // word longer than the line, never shortening), returns where the next line starts
 static const char *wrap_line(const font_t *f, const char *t, int max_w, char *line, size_t cap)
 {
-	int n = 0, cut = 0;
-	while (t[n] && t[n] != '\n' && n < (int)cap - 1) {
-		line[n] = t[n];
-		line[n + 1] = 0;
-		if (gfx_text_width(f, line) > max_w)
+	size_t n = 0, cut = 0;		// bytes; cut is the end of the last space (a word boundary is a char boundary)
+	int w = 0;
+	const char *p = t;
+	while (*p && *p != '\n') {
+		const char *start = p;
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
+		size_t cl = (size_t)(p - start);
+		if (n + cl + 1 > cap || w + g.advance > max_w)
 			break;
-		if (t[n] == ' ')
+		memcpy(line + n, start, cl);
+		n += cl;
+		line[n] = 0;
+		if (*start == ' ')
 			cut = n;
-		n++;
+		w += g.advance;
 	}
-	bool fits_all = t[n] == 0 || t[n] == '\n';
+	bool fits_all = *p == 0 || *p == '\n';
 	if (!fits_all && cut > 0)
 		n = cut;
-	if (n == 0 && t[0] && t[0] != '\n')
-		n = 1;		// narrower than one glyph: still move on
+	if (n == 0 && t[0] && t[0] != '\n') {
+		// narrower than one glyph: still move on with that character (a box if it can't fit)
+		font_glyph_utf8_t g;
+		const char *q = t;
+		font_glyph_utf8(f, &q, &g);
+		size_t cl = (size_t)(q - t);
+		if (cl + 1 <= cap) {
+			memcpy(line, t, cl);
+			n = cl;
+		}
+	}
 	line[n] = 0;
 	t += n;
 	if (*t == '\n')
@@ -2402,31 +2418,39 @@ int ui_draw_text_page(const radio_view_t *v, const ui_state_t *s, const char *ti
 }
 
 // s shortened at the end, at a word if one ends late enough, with an ellipsis: for a preview of longer text (a
-// message), where the start is what matters
+// message), where the start is what matters. The unit is a character, not a byte: a translation is UTF-8, and
+// gfx_text_width and font_glyph_utf8 advance a CJK character two Latin cells
 static void fit_end(const font_t *f, const char *s, int max_w, char *out, size_t len)
 {
-	size_t n = strlen(s), fit = max_w <= 0 ? 0 : (size_t)(max_w / f->w);
-	if (fit >= len)
-		fit = len - 1;
-	if (n <= fit) {
-		memcpy(out, s, n + 1);
+	if (gfx_text_width(f, s) <= max_w) {
+		str_copy(out, len, s);
 		return;
 	}
-	if (fit == 0) {
-		out[0] = 0;
-		return;
+	size_t nbytes = 0, nchars = 0, space_byte = 0, space_char = 0;
+	int w = 0, ell = gfx_text_width(f, GLYPH_ELLIPSIS);
+	const char *p = s;
+	while (*p) {
+		const char *start = p;
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
+		if (w + g.advance + ell > max_w || (size_t)(p - s) + ell + 1 > len)
+			break;
+		if (*start == ' ') {
+			space_byte = (size_t)(p - s);
+			space_char = nchars;
+		}
+		nbytes = (size_t)(p - s);
+		nchars++;
+		w += g.advance;
 	}
-	size_t keep = fit - 1;
-	size_t cut = keep;
-	while (cut > 0 && s[cut] != ' ')
+	size_t cut = nbytes;		// end at a word unless that throws away more than half
+	if (space_char > 0 && space_char >= nchars / 2)
+		cut = space_byte;
+	while (cut > 0 && s[cut - 1] == ' ')
 		cut--;
-	if (cut >= keep / 2)
-		keep = cut;		// end at a word unless that throws away more than half
-	while (keep > 0 && s[keep - 1] == ' ')
-		keep--;
-	memcpy(out, s, keep);
-	out[keep] = GLYPH_ELLIPSIS[0];
-	out[keep + 1] = 0;
+	memcpy(out, s, cut);
+	out[cut] = GLYPH_ELLIPSIS[0];
+	out[cut + 1] = 0;
 #ifdef GFX_FIT_TRACE
 	gfx_fit_trace(s, out);
 #endif
@@ -2447,8 +2471,8 @@ static void row_text(const font_t *f, int x, int y, int w, const char *label, co
 	val[0] = 0;
 	// The longest value alternate that fits next to the whole label (or the shortest one there is)
 	for (int level = 0; value[0] && more; level++) {
-		size_t n = gfx_text_alt(value, level, val, sizeof val, &more);
-		vw = (int)n * f->w;
+		gfx_text_alt(value, level, val, sizeof val, &more);
+		vw = gfx_text_width(f, val);
 		if (x + lw + (vw ? gap + vw : 0) <= w)
 			break;
 	}

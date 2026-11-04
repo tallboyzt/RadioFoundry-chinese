@@ -14,7 +14,7 @@ source of both. This page is the how-to; the rules are in [ui.md 2.5](../spec/ui
 | Tool | `tools/i18n.py` | `python3 -m rfoundrysite.i18n` (from `site/`) |
 | Build switch | `CONFIG_LANG_<CODE>`, one per language; `CONFIG_LANG_DEFAULT_<CODE>` to start in it | None: every language is on the site |
 | Missing string | Shown in English; fails CI | Shown in English; fails CI |
-| Characters | ASCII and Latin-1 (U+00A0 to U+00FF) | Any Unicode |
+| Characters | ASCII and Latin-1 (U+00A0 to U+00FF); Chinese (zh) also the CJK characters of `CONFIG_FONT_CJK` | Any Unicode |
 
 ## Translating the radio
 
@@ -48,6 +48,12 @@ With every language switched off, `TR()` is the text itself and the lookup is go
 
    `python3 tools/boards.py docs` then adds the switches to the generated tables of the feature matrix.
 
+   For Chinese (`zh`) also: `CONFIG_FONT_CJK` (in `config/features.mk` and `core/config.h`), the multi-byte renderer's
+   switch, and `CONFIG_LANG_ZH=y needs CONFIG_FONT_CJK=y`. After translating the catalog, generate the CJK subset from
+   the characters it uses: `python3 tools/cjkfont.py NotoSansCJKsc-Regular.otf <chars> cjk_16x16
+   LICENSES/OFL-1.1-Noto.txt OFL-1.1 16x16:12 > core/ui/fonts/cjk_16x16.inc` (or `--po core/ui/lang/zh.po`), with the
+   OFL-1.1 Noto Sans CJK SC font (`LICENSES/OFL-1.1-Noto.txt`).
+
    `tools/i18n.py --check` fails until every one of these is there.
 3. Translate (below), then run `python3 tools/i18n.py --check` and the host tests (`make -C tests/host`).
 4. Look at it: build the gallery in your language (below), or flash a build and pick it in Settings > Display >
@@ -77,7 +83,7 @@ msgstr "Retroiluminación"
 | Keep it short. Most screens are 128 or 160 pixels wide: about 21 characters in the small font, 16 in the list font | A row too long is cut with an ellipsis; a toast or hint is cut |
 | Keep leading and trailing spaces, and the colon at the end | The code glues a number or a name to the text: `"Volume "` + `"5"` |
 | Keep `{a\|b}` groups as groups, with the same number of choices | A text alternate: the radio shows the first choice that fits, longest first. Write each choice shorter than the one before |
-| Use only ASCII and Latin-1 letters (á é í ó ú ñ ü ç ß ...) and `… · → ° ⤒ ⤓` | The radio draws one byte a character; `--check` rejects anything else |
+| Use only ASCII and Latin-1 letters (á é í ó ú ñ ü ç ß ...) and `… · → ° ⤒ ⤓`; Chinese also the CJK characters the `CONFIG_FONT_CJK` subset covers | The radio draws one byte a character (`--check` rejects anything else), except Chinese, which is UTF-8 with the CJK subset (`tools/cjkfont.py`) |
 | Start every hint group that names the Back key with exactly your translation of `"Back"` | Hints keep the Back group at the right edge by matching that word: change it and every Back group must change with it |
 | Status strip words (IDLE, NO TX, SCAN, DUAL, ROAM) and chips (Lock, DMon, Priv) no longer than the English; keep the English when nothing fits | They sit in fixed slots of the status strip |
 | Don't translate the standard abbreviations the source leaves unmarked (TG, TS, CC, RX, TX, VFO, DMR, FM) | Radio operators know them; they aren't in the catalog |

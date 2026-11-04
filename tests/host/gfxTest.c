@@ -444,6 +444,51 @@ static void test_pass_wait(void)
 	CHECK(!gfx_held(5));
 }
 
+// The Chinese interface: a marked string decodes to UTF-8, a CJK character is a 2-cell glyph at 1 bit a pixel from
+// the font's subset, and the text helpers measure and fit by width without splitting a character. Only the CJK
+// build has the subset (core/ui/fonts/cjk_16x16.inc), so the test is that build's
+static void test_cjk_text(void)
+{
+#if CONFIG_FONT_CJK
+	const font_t *f = &font_aa_8x16;
+	CHECK(f->cjk != NULL);
+	const char *p = "中A文";
+	font_glyph_utf8_t g;
+	font_glyph_utf8(f, &p, &g);
+	CHECK(g.advance == 2 * f->w && g.bits != NULL && g.bpp == 1);
+	font_glyph_utf8(f, &p, &g);	// "A文"
+	CHECK(g.advance == f->w && g.bits != NULL && g.bpp == f->bpp);
+	font_glyph_utf8(f, &p, &g);	// "文"
+	CHECK(g.advance == 2 * f->w && g.bits != NULL);
+	CHECK(gfx_text_width(f, "中A文") == 5 * f->w);
+
+	// The renderer draws a 16x16 CJK glyph across two 8x16 cells, ink from the subset
+	hal_display_t d = disp;
+	d.width = 160; d.height = 120; d.bpp = 16;
+	d.inset_top = d.inset_bottom = d.inset_left = d.inset_right = 0;
+	CHECK(gfx_init(&d));
+	gfx_clear(0);
+	gfx_text(f, 0, 0, "中", RGB565(255, 255, 255));
+	int ink = 0;
+	for (int y = 0; y < f->h; y++)
+		for (int x = 0; x < 2 * f->w; x++)
+			ink += gfx_get_pixel(x, y) == RGB565(255, 255, 255);
+	CHECK(ink > 30);	// a full 16x16 glyph has plenty of ink
+	gfx_init(&disp);
+
+	// gfx_text_fit: by width, at character boundaries, and never wider than asked
+	char fit[32];
+	gfx_text_fit(f, "中文字", 6 * f->w, fit, sizeof fit);
+	CHECK(strcmp(fit, "中文字") == 0);	// 3 CJK = 6 cells, exactly fits
+	gfx_text_fit(f, "中文字", 5 * f->w, fit, sizeof fit);
+	CHECK(strstr(fit, "中") && strstr(fit, "字"));	// keeps the start and the end
+	CHECK(gfx_text_width(f, fit) <= 5 * f->w);	// the ellipsis is one cell
+	gfx_text_fit(f, "中文字", f->w, fit, sizeof fit);
+	CHECK(strcmp(fit, GLYPH_ELLIPSIS) == 0);	// no room with the ellipsis: only it
+	gfx_init(&disp);
+#endif
+}
+
 int main(void)
 {
 	mkdir("out", 0755);
@@ -590,6 +635,7 @@ int main(void)
 	test_idle_pill_contrast();
 	test_big_text();
 	test_hc_strip_white();
+	test_cjk_text();
 
 	printf(fails ? "# FAILED gfxTest: %d\n" : "# PASSED gfxTest\n", fails);
 	return fails != 0;

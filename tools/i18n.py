@@ -100,18 +100,35 @@ def bytes_to_text(b, where):
     return "".join(out)
 
 
-def text_to_bytes(text, where):
-    """A catalog string as the bytes the radio draws"""
+def text_to_bytes(text, where, code=""):
+    """A catalog string as the bytes the radio draws. For a CJK language (code "zh") a character the CJK font's
+    subset covers is its UTF-8 bytes (the renderer is multi-byte); otherwise only Latin-1 (the renderer is single
+    byte), and a marked string's glyphs and alternates"""
     out = bytearray()
     for ch in text:
         if ch in TEXT_TO_BYTE:
             out.append(TEXT_TO_BYTE[ch])
         elif 0x20 <= ord(ch) < 0x7F or 0xA0 <= ord(ch) <= 0xFF:
             out.append(ord(ch))
+        elif code in CJK_CODES and cjk_drawable(ch):
+            out += ch.encode("utf-8")
         else:
-            raise I18nError("%s: %r (U+%04X) can't be drawn: use ASCII, Latin-1 (U+00A0-U+00FF) or one of %s"
-                    % (where, ch, ord(ch), " ".join(TEXT_TO_BYTE)))
+            raise I18nError("%s: %r (U+%04X) can't be drawn%s: use ASCII, Latin-1 (U+00A0-U+00FF) or one of %s"
+                    % (where, ch, ord(ch),
+                       " (this language draws the CJK subset)" if code in CJK_CODES else "",
+                       " ".join(TEXT_TO_BYTE)))
     return bytes(out)
+
+
+# A language whose text the radio draws with the multi-byte renderer and the CJK subset font (core/ui/fonts/
+# cjk_16x16.inc): its catalog may use the characters the subset covers (tools/cjkfont.py), and no more
+CJK_CODES = {"zh"}
+
+
+def cjk_drawable(ch):
+    """A character the CJK subset font can hold: CJK punctuation and ideographs, the fullwidth forms"""
+    o = ord(ch)
+    return 0x3000 <= o <= 0x9FFF or 0xFF00 <= o <= 0xFFEF
 
 
 def source_files():
@@ -353,11 +370,11 @@ def alt_groups(text):
     return groups
 
 
-def check_translation(en, tr, where):
+def check_translation(en, tr, where, code=""):
     """Problems of one translation (a list of strings)"""
     errs = []
     try:
-        b = text_to_bytes(tr, where)
+        b = text_to_bytes(tr, where, code)
         if len(b) > MAX_BYTES:
             errs.append("%s: longer than %d bytes" % (where, MAX_BYTES))
     except I18nError as e:
@@ -474,9 +491,9 @@ def tables():
                 raise I18nError("%s: hash collides with %r: reword one of them" % (where, seen[h]))
             if not msgstr or fz:
                 continue
-            if check_translation(msgid, msgstr, where):
+            if check_translation(msgid, msgstr, where, code):
                 continue    # --check reports it; the build shows the English
-            tr = text_to_bytes(msgstr, where)
+            tr = text_to_bytes(msgstr, where, code)
             if tr == en:
                 continue    # the English is shown anyway
             owner.add(h)
@@ -551,7 +568,7 @@ def generate(out_path):
     lines.append("#define LANG_LIST\t{ \\")
     lines.append("\t{ \"en\", \"English\", true, NULL }, \\")
     for code, name, sw in langs:
-        lines.append("\t{ \"%s\", %s, %s, LANG_%s_TABLE }, \\" % (code, c_bytes(text_to_bytes(name, code)), sw,
+        lines.append("\t{ \"%s\", %s, %s, LANG_%s_TABLE }, \\" % (code, c_bytes(text_to_bytes(name, code, code)), sw,
                                        code.upper()))
     lines.append("}")
     lines.append("// The language an empty setting means: the first CONFIG_LANG_DEFAULT_<CODE> on, else English")
@@ -567,10 +584,15 @@ def generate(out_path):
     os.makedirs(os.path.dirname(os.path.abspath(out_path)), exist_ok=True)
     old = None
     if os.path.exists(out_path):
-        with open(out_path, encoding="latin-1") as f:
-            old = f.read()
+        # The file is ASCII except a comment with a language's own name; earlier catalogs wrote it Latin-1
+        with open(out_path, "rb") as f:
+            raw = f.read()
+        try:
+            old = raw.decode("utf-8")
+        except UnicodeDecodeError:
+            old = raw.decode("latin-1")
     if old != text:
-        with open(out_path, "w", encoding="latin-1") as f:
+        with open(out_path, "w", encoding="utf-8") as f:
             f.write(text)
         print("changed")
 
@@ -590,7 +612,7 @@ def main():
             path = os.path.join(LANG_DIR, code + ".po")
             if os.path.exists(path):
                 raise I18nError("%s exists" % os.path.relpath(path, ROOT))
-            text_to_bytes(name, "NAME")
+            text_to_bytes(name, "NAME", code)
             os.makedirs(LANG_DIR, exist_ok=True)
             source = extract()
             write_po(path, {"Project-Id-Version": "RadioFoundry", "Language": code, "X-Language-Name": name,
@@ -623,7 +645,7 @@ def main():
                         errs.append("%s: out of date with the source: run tools/i18n.py --sync" % rel)
                     for msgid, msgstr, fz in entries:
                         if msgstr and not fz:
-                            errs += check_translation(msgid, msgstr, "%s: %r" % (rel, msgid))
+                            errs += check_translation(msgid, msgstr, "%s: %r" % (rel, msgid), code)
                     errs += check_switches(code)
                     if "--allow-pending" not in sys.argv:
                         errs += pending(rel, entries)

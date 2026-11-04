@@ -62,6 +62,25 @@ int main(void)
 	CHECK(strcmp(TR("Settings"), "Settings") == 0);
 #endif
 
+	// Chinese: the multi-byte renderer's language, drawn from the CJK subset font; a lookup returns the UTF-8 text
+	uint8_t zh = lang_find('z' << 8 | 'h');
+	CHECK(zh != LANG_ENGLISH && strcmp(lang_code(zh), "zh") == 0);
+	CHECK(strcmp(lang_name(zh), "\xE4\xB8\xAD\xE6\x96\x87") == 0);	// 中文
+	CHECK(lang_value(zh) == ('z' << 8 | 'h'));
+#if CONFIG_LANG_ZH
+	CHECK(lang_built(zh) && lang_set(zh) && lang_current() == zh);
+	CHECK(strcmp(TR("Off"), "\xE5\x85\xB3") == 0);		// 关
+	CHECK(strcmp(TR("Back"), "\xE8\xBF\x94\xE5\x9B\x9E") == 0);	// 返回
+	CHECK(strcmp(TR("Settings"), "\xE8\xAE\xBE\xE7\xBD\xAE") == 0);	// 设置
+	CHECK(strcmp(TR("Channel"), "\xE4\xBF\xA1\xE9\x81\x93") == 0);	// 信道
+	// An empty translation (a string only the source marks) is the English, and a lookup that misses is too
+	const char *unknown2 = "Not a string the UI marks";
+	CHECK(tr(unknown2) == unknown2);
+	CHECK(lang_set(LANG_ENGLISH) && strcmp(TR("Off"), "Off") == 0);
+#else
+	CHECK(!lang_built(zh) && !lang_set(zh));
+#endif
+
 	// Latin-1: the 8x16 font has the letters when a language is built, else they fall back to the plain letter; the
 	// 5x8 font never has them
 	CHECK(same_glyph(&font_5x8, 0xF1, 'n') && same_glyph(&font_5x8, 0xC9, 'E') && same_glyph(&font_5x8, 0xBF, '?'));

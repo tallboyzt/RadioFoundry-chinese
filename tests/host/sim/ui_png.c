@@ -120,16 +120,19 @@ static void sheet_put(int x, int y, uint32_t rgb)
 static void sheet_text(int x, int y, const char *s, uint32_t rgb)
 {
 	const font_t *f = &font_6x12;
-	int stride = (f->w + 7) / 8;
-	for (; *s; s++, x += f->w) {
-		int top, rows;
-		const uint8_t *g = font_glyph(f, (uint8_t)*s, &top, &rows);
-		if (g == NULL)
+	for (const char *p = s; *p; ) {
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
+		if (g.bits == NULL) {
+			x += g.advance;
 			continue;
-		for (int r = 0; r < rows; r++)
-			for (int c = 0; c < f->w; c++)
-				if (g[r * stride + c / 8] & (0x80u >> (c & 7)))
-					sheet_put(x + c, y + top + r, rgb);
+		}
+		int stride = (g.w * g.bpp + 7) / 8;
+		for (int r = 0; r < g.rows; r++)
+			for (int c = 0; c < g.w; c++)
+				if (g.bits[r * stride + c / 8] & (0x80u >> (c & 7)))
+					sheet_put(x + c, y + g.top + r, rgb);
+		x += g.advance;
 	}
 }
 

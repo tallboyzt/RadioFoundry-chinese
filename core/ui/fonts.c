@@ -6,11 +6,20 @@
 // LICENSES/OFL-1.1.txt). Both converted by tools/fontconv.py.
 #include "font.h"
 
-#define FONT(var, n, N, bpp) \
-	const font_t var = { N##_W, N##_H, N##_ASCENT, N##_MISSING, bpp, FONT_LATIN1 && N##_LATIN1, n##_bits, n##_index }
+#define FONT(var, n, N, bpp, cjk) \
+	const font_t var = { N##_W, N##_H, N##_ASCENT, N##_MISSING, bpp, FONT_LATIN1 && N##_LATIN1, n##_bits, n##_index, cjk }
+
+// The CJK subset for the 8x16 sizes (a full-width cell, twice their width): the translated catalog's glyphs, from
+// Noto Sans CJK (OFL-1.1, core/ui/fonts/cjk_16x16.inc and LICENSES/OFL-1.1.txt), converted by tools/cjkfont.py
+#if CONFIG_FONT_CJK
+#include "fonts/cjk_16x16.inc"
+#define CJK_16	(&cjk_16x16)
+#else
+#define CJK_16	NULL
+#endif
 
 #include "fonts/spleen_5x8.inc"
-FONT(font_5x8, spleen_5x8, SPLEEN_5X8, 1);
+FONT(font_5x8, spleen_5x8, SPLEEN_5X8, 1, NULL);
 
 #if CONFIG_FONT_AA
 #include "fonts/jbmono_6x12.inc"
@@ -31,14 +40,14 @@ bool font_big_on = true;
 #else
 #define AA(n)	font_##n
 #endif
-FONT(AA(6x12), jbmono_6x12, JBMONO_6X12, JBMONO_6X12_BPP);
-FONT(AA(8x16), jbmono_8x16, JBMONO_8X16, JBMONO_8X16_BPP);
-FONT(AA(12x24), jbmono_12x24, JBMONO_12X24, JBMONO_12X24_BPP);
+FONT(AA(6x12), jbmono_6x12, JBMONO_6X12, JBMONO_6X12_BPP, NULL);
+FONT(AA(8x16), jbmono_8x16, JBMONO_8X16, JBMONO_8X16_BPP, CJK_16);
+FONT(AA(12x24), jbmono_12x24, JBMONO_12X24, JBMONO_12X24_BPP, NULL);
 #if CONFIG_FONT_BIG
-FONT(AA(9x18), jbmono_9x18, JBMONO_9X18, JBMONO_9X18_BPP);
+FONT(AA(9x18), jbmono_9x18, JBMONO_9X18, JBMONO_9X18_BPP, NULL);
 #endif
 #if CONFIG_FONT_XL
-FONT(AA(16x32), jbmono_16x32, JBMONO_16X32, JBMONO_16X32_BPP);
+FONT(AA(16x32), jbmono_16x32, JBMONO_16X32, JBMONO_16X32_BPP, NULL);
 #endif
 #endif
 
@@ -46,12 +55,12 @@ FONT(AA(16x32), jbmono_16x32, JBMONO_16X32, JBMONO_16X32_BPP);
 #include "fonts/spleen_6x12.inc"
 #include "fonts/spleen_8x16.inc"
 #include "fonts/spleen_12x24.inc"
-FONT(font_6x12, spleen_6x12, SPLEEN_6X12, 1);
-FONT(font_8x16, spleen_8x16, SPLEEN_8X16, 1);
-FONT(font_12x24, spleen_12x24, SPLEEN_12X24, 1);
+FONT(font_6x12, spleen_6x12, SPLEEN_6X12, 1, NULL);
+FONT(font_8x16, spleen_8x16, SPLEEN_8X16, 1, CJK_16);
+FONT(font_12x24, spleen_12x24, SPLEEN_12X24, 1, NULL);
 #if CONFIG_FONT_XL
 #include "fonts/spleen_16x32.inc"
-FONT(font_16x32, spleen_16x32, SPLEEN_16X32, 1);
+FONT(font_16x32, spleen_16x32, SPLEEN_16X32, 1, NULL);
 #endif
 #endif
 
@@ -85,4 +94,78 @@ const uint8_t *font_glyph(const font_t *f, uint8_t c, int *top, int *rows)
 	*top = g[0];
 	*rows = g[1];
 	return g + 2;
+}
+
+// A CJK glyph by codepoint: its first inked row, the rows from there, then the rows of packed pixels. A subset
+// keeps only the catalog's characters, so a search is a binary lookup in the sorted codepoint array
+static const uint8_t *cjk_glyph(const font_cjk_t *c, unsigned cp, int *top, int *rows)
+{
+	int lo = 0, hi = (int)c->count - 1;
+	while (lo <= hi) {
+		int mid = (lo + hi) / 2;
+		unsigned m = c->cp[mid];
+		if (cp < m)
+			hi = mid - 1;
+		else if (cp > m)
+			lo = mid + 1;
+		else {
+			const uint8_t *g = c->bits + c->off[mid];
+			*top = g[0];
+			*rows = g[1];
+			return g + 2;
+		}
+	}
+	return NULL;
+}
+
+void font_glyph_utf8(const font_t *f, const char **p, font_glyph_utf8_t *g)
+{
+	const uint8_t *s = (const uint8_t *)*p;
+	uint8_t b = s[0];
+	g->w = f->w;
+	g->h = f->h;
+	g->bpp = f->bpp;
+	// A byte that isn't a UTF-8 lead: ASCII, the glyph bytes (0x80..0x8F) and invalid bytes, one cell exactly as
+	// font_glyph
+	if (b < 0xC0 || b >= 0xF8) {
+		*p = (const char *)(s + 1);
+		g->advance = f->w;
+		g->bits = font_glyph(f, b, &g->top, &g->rows);
+		return;
+	}
+	// Decode a UTF-8 sequence (2, 3 or 4 bytes); a byte whose continuations are wrong is drawn as itself
+	unsigned cp;
+	int len;
+	if (b < 0xE0) {
+		len = 2;
+		cp = b & 0x1Fu;
+	} else if (b < 0xF0) {
+		len = 3;
+		cp = b & 0x0Fu;
+	} else {
+		len = 4;
+		cp = b & 0x07u;
+	}
+	for (int i = 1; i < len; i++) {
+		if ((s[i] & 0xC0u) != 0x80u) {
+			*p = (const char *)(s + 1);
+			g->advance = f->w;
+			g->bits = font_glyph(f, b, &g->top, &g->rows);
+			return;
+		}
+		cp = (cp << 6) | (s[i] & 0x3Fu);
+	}
+	*p = (const char *)(s + len);
+	// A CJK character: a full-width cell from the font's CJK subset, or a box (bits == NULL) for one it lacks
+	if (f->cjk && cp >= 0x3000 && cp <= 0x9FFF) {
+		g->w = f->cjk->w;
+		g->h = f->cjk->h;
+		g->bpp = f->cjk->bpp;
+		g->advance = 2 * f->w;
+		g->bits = cjk_glyph(f->cjk, cp, &g->top, &g->rows);
+		return;
+	}
+	// Any other multi-byte character (a symbol the font lacks): one cell, no glyph (the caller draws a box)
+	g->advance = f->w;
+	g->bits = cp <= 0xFF ? font_glyph(f, (uint8_t)cp, &g->top, &g->rows) : NULL;
 }

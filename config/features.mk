@@ -151,6 +151,10 @@ CONFIG_FONT_AA ?= n
 # larger text on 240 px and wider color panels: lists, labels and the status strip in a 9x18 font instead of 8x16
 # (12% larger, 24 characters a line on a 240 px panel instead of 27). About 3 KB more flash (needs FONT_AA)
 CONFIG_FONT_BIG ?= n
+# The CJK subset font: the characters the Chinese catalog draws, on the 8x16 sizes (core/ui/fonts/cjk_16x16.inc,
+# tools/cjkfont.py). A Chinese interface needs it with CONFIG_LANG_ZH=y; a build without it shows those characters as
+# boxes. About 1.5 KB of font data per 50 characters
+CONFIG_FONT_CJK ?= n
 # Spanish on the radio (Settings > Display > Language; core/ui/lang/es.po, docs/dev/translating.md). About 28 KB with
 # the lookup and the accented letters of every font (7.5 KB), which the first language brings; each further one adds
 # its text only (about 17 KB)
@@ -158,10 +162,14 @@ CONFIG_LANG_ES ?= y
 # Italian on the radio (core/ui/lang/it.po): off by default, listed dimmed; the web flasher offers it to Italian
 # browsers. About 17 KB with Spanish on
 CONFIG_LANG_IT ?= n
+# Chinese (Simplified) on the radio (core/ui/lang/zh.po): off by default, listed dimmed. A Chinese interface also
+# needs CONFIG_FONT_CJK=y (the subset font). About 1.5 KB per 50 characters plus the catalog's text
+CONFIG_LANG_ZH ?= n
 # the language the radio starts in, until the user picks one in Settings > Display > Language: one switch per language,
 # at most one on (with more, the first listed wins), off = English. Needs that language's switch. No flash cost
 CONFIG_LANG_DEFAULT_ES ?= n
 CONFIG_LANG_DEFAULT_IT ?= n
+CONFIG_LANG_DEFAULT_ZH ?= n
 # color screen settings: theme, highlight color, filled status bar (off: the dark theme only; for radios whose only
 # screen is monochrome)
 CONFIG_UI_COLOR ?= y
@@ -263,7 +271,7 @@ CONFIG_GPS_SKY ?= $(if $(and $(filter y,$(CONFIG_GPS)),$(filter y,$(CONFIG_APRS)
 
 
 FEATURES := FM SUBTONE DMR DMR_PRIVACY DMR_TALKER_ALIAS DMR_GPS DMR_SMS DMR_TMS DMR_ARS DMR_LRRP DMR_SIGNALING DMR_EMERGENCY DMR_ROAMING DMR_IP_GATEWAY ZONE_SHARE DMR_UDP_COMPRESS DMR_CONFIRMED NET_TCP NET_KISS NET_HTTP NET_HTTP_GZIP NET_WEBCTL NET_RIGCTL NET_APRSIS NET_USRP MDNS TFTP TFTP_IDDB IDDB_COMPACT DMR_CONTROL_STATION SNMP SFR SFR_DUALPATH_RX SFR_CWID TASK_STACKS \
-	USB HOSTLINK USB_NETWORK NET_PPP HOTSPOT HOTSPOT_SPLIT DEBUGLINK CPS_OPENFW CPS_FAST VFO VFO_FM VFO_DMR DIAG FONT_XL FONT_AA FONT_BIG LANG_ES LANG_IT LANG_DEFAULT_ES LANG_DEFAULT_IT UI_COLOR UI_SETTINGS SCAN DUAL_WATCH BEEP FM_TX_TONES DTMF \
+	USB HOSTLINK USB_NETWORK NET_PPP HOTSPOT HOTSPOT_SPLIT DEBUGLINK CPS_OPENFW CPS_FAST VFO VFO_FM VFO_DMR DIAG FONT_XL FONT_AA FONT_BIG FONT_CJK LANG_ES LANG_IT LANG_ZH LANG_DEFAULT_ES LANG_DEFAULT_IT LANG_DEFAULT_ZH UI_COLOR UI_SETTINGS SCAN DUAL_WATCH BEEP FM_TX_TONES DTMF \
 	VOX REF_TRIM BATTERY_SAVE VIBRATE GPS AUDIO_PROBE STUB_ENTRY NAND_STORAGE CRASH_LOG CRASH_SCREEN CRASH_REPORT WATCHDOG FAULT_TRACE AM_RX BCAST_FM APRS APRS_RX APRS_IGATE GPS_SKY KEY_ASSIGN CHANNEL_LIST CHANNEL_EDIT ZONE_EDIT CONTACT_EDIT
 
 # Dependencies
@@ -276,6 +284,8 @@ endif
 $(foreach f,IDDB_COMPACT DMR_PRIVACY DMR_TALKER_ALIAS DMR_GPS DMR_SMS DMR_ARS DMR_LRRP DMR_SIGNALING DMR_EMERGENCY DMR_ROAMING DMR_IP_GATEWAY ZONE_SHARE DMR_UDP_COMPRESS DMR_CONFIRMED NET_TCP NET_KISS NET_HTTP NET_HTTP_GZIP NET_RIGCTL NET_APRSIS NET_USRP MDNS TFTP SFR HOTSPOT,$(if $(and $(call feature_on,$(f)),$(if $(call feature_on,DMR),,x)),$(error CONFIG_$(f)=y needs CONFIG_DMR=y)))
 $(if $(and $(call feature_on,LANG_DEFAULT_ES),$(if $(call feature_on,LANG_ES),,x)),$(error CONFIG_LANG_DEFAULT_ES=y needs CONFIG_LANG_ES=y))
 $(if $(and $(call feature_on,LANG_DEFAULT_IT),$(if $(call feature_on,LANG_IT),,x)),$(error CONFIG_LANG_DEFAULT_IT=y needs CONFIG_LANG_IT=y))
+$(if $(and $(call feature_on,LANG_DEFAULT_ZH),$(if $(call feature_on,LANG_ZH),,x)),$(error CONFIG_LANG_DEFAULT_ZH=y needs CONFIG_LANG_ZH=y))
+$(if $(and $(call feature_on,LANG_ZH),$(if $(call feature_on,FONT_CJK),,x)),$(error CONFIG_LANG_ZH=y needs CONFIG_FONT_CJK=y (the Chinese interface draws the catalog with the CJK subset font)))
 $(foreach f,SFR_DUALPATH_RX SFR_CWID,$(if $(and $(call feature_on,$(f)),$(if $(call feature_on,SFR),,x)),$(error CONFIG_$(f)=y needs CONFIG_SFR=y)))
 ifneq ($(call feature_on,CHANNEL_EDIT),)
   ifeq ($(call feature_on,CHANNEL_LIST),)

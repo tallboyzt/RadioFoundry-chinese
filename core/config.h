@@ -154,6 +154,12 @@
 #ifndef CONFIG_FONT_BIG
 #define CONFIG_FONT_BIG			CONFIG_FONT_AA
 #endif
+// The CJK subset font (core/ui/fonts/cjk_16x16.inc, tools/cjkfont.py): the characters the translated catalog draws,
+// a full-width cell on the 8x16 sizes, so a Chinese interface renders the catalog's characters. A build without it
+// shows them as boxes. About 1.5 KB of font data per 50 characters (16x16, 1 bit a pixel)
+#ifndef CONFIG_FONT_CJK
+#define CONFIG_FONT_CJK		0
+#endif
 // Languages the radio can show besides English (core/ui/lang/<code>.po, docs/dev/translating.md): one switch each.
 // CONFIG_LANG_ANY: at least one is built (the translation lookup, the Latin-1 glyphs); add each new switch to it
 #ifndef CONFIG_LANG_ES
@@ -162,7 +168,10 @@
 #ifndef CONFIG_LANG_IT
 #define CONFIG_LANG_IT			0
 #endif
-#define CONFIG_LANG_ANY			(CONFIG_LANG_ES || CONFIG_LANG_IT)
+#ifndef CONFIG_LANG_ZH
+#define CONFIG_LANG_ZH			0
+#endif
+#define CONFIG_LANG_ANY			(CONFIG_LANG_ES || CONFIG_LANG_IT || CONFIG_LANG_ZH)
 // The language the radio starts in until the user picks one (CONFIG_LANG_DEFAULT_<CODE>, needs its CONFIG_LANG_<CODE>):
 // all 0 = English
 #ifndef CONFIG_LANG_DEFAULT_ES
@@ -170,6 +179,9 @@
 #endif
 #ifndef CONFIG_LANG_DEFAULT_IT
 #define CONFIG_LANG_DEFAULT_IT		0
+#endif
+#ifndef CONFIG_LANG_DEFAULT_ZH
+#define CONFIG_LANG_DEFAULT_ZH		0
 #endif
 #ifndef CONFIG_UI_COLOR
 #define CONFIG_UI_COLOR			1

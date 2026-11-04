@@ -378,7 +378,7 @@ static void icon_glyph(const font_t *f, int x, int y, uint8_t c, color_t fg)
 }
 
 // Extra glyphs a font lacks, drawn from primitives inside the cell at x, y
-static void fallback_glyph(const font_t *f, int x, int y, uint8_t c, color_t fg)
+static void fallback_glyph(const font_t *f, int x, int y, uint8_t c, int w, color_t fg)
 {
 	int dot = f->w >= 10 ? 2 : 1;
 	int base = y + f->ascent;
@@ -409,8 +409,8 @@ static void fallback_glyph(const font_t *f, int x, int y, uint8_t c, color_t fg)
 	case 0x85:
 		icon_glyph(f, x, y, c, fg);
 		break;
-	default:	// not drawable: a box
-		gfx_rect(x + 1, y + 1, f->w - 2, f->ascent - 1, fg);
+	default:	// not drawable: a box the width of the cell it would have filled (a CJK character spans two)
+		gfx_rect(x + 1, y + 1, w - 2, f->ascent - 1, fg);
 		break;
 	}
 }
@@ -471,30 +471,37 @@ static int text(const font_t *f, int x, int y, const char *s, color_t fg, bool o
 	int x0 = x;
 #endif
 	int bytes = (f->w * f->bpp + 7) / 8;
-	for (; *s; s++, x += f->w) {
+	for (const char *p = s; *p; ) {
+		const char *start = p;
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
 		int px = x + ox, py = y + oy;	// panel coordinates for the clip tests and spans
 		if (px >= clip_x1)
 			break;
-		if (px + f->w <= clip_x0 || py >= clip_y1 || py + f->h <= clip_y0)
-			continue;
-		if (opaque)
-			gfx_fill(x, y, f->w, f->h, bg);
-		int top, rows;
-		const uint8_t *g = font_glyph(f, (uint8_t)*s, &top, &rows);
-		if (g == NULL) {
-			fallback_glyph(f, x, y, (uint8_t)*s, fg);
+		if (px + g.w <= clip_x0 || py >= clip_y1 || py + g.h <= clip_y0) {
+			x += g.advance;
 			continue;
 		}
-		for (int r = 0; r < rows; r++, g += bytes) {
-			int yy = py + top + r;
+		if (opaque)
+			gfx_fill(x, y, g.w, g.h, bg);
+		if (g.bits == NULL) {
+			// A byte the font cannot draw: its glyph code (0x80..0x85) or, for a multi-byte character the CJK
+			// subset lacks, a box. c = 0 is not a glyph code, so it draws the box
+			fallback_glyph(f, x, y, p - start == 1 ? (uint8_t)*start : 0, g.w, fg);
+			x += g.advance;
+			continue;
+		}
+		bytes = (g.w * g.bpp + 7) / 8;
+		for (int r = 0; r < g.rows; r++, g.bits += bytes) {
+			int yy = py + g.top + r;
 			if (yy < clip_y0 || yy >= clip_y1)
 				continue;
-			for (int col = 0; col < f->w; col++) {
+			for (int col = 0; col < g.w; col++) {
 #if CONFIG_FONT_AA
-				unsigned a = f->bpp == 2 ? (g[col >> 2] >> (6 - 2 * (col & 3))) & 3u :
-					     (g[col >> 3] & (0x80u >> (col & 7))) ? 3u : 0;
+				unsigned a = g.bpp == 2 ? (g.bits[col >> 2] >> (6 - 2 * (col & 3))) & 3u :
+					     (g.bits[col >> 3] & (0x80u >> (col & 7))) ? 3u : 0;
 #else
-				unsigned a = (g[col >> 3] & (0x80u >> (col & 7))) ? 3u : 0;
+				unsigned a = (g.bits[col >> 3] & (0x80u >> (col & 7))) ? 3u : 0;
 #endif
 				int xx = px + col;
 				if (a == 0 || xx < clip_x0 || xx >= clip_x1)
@@ -508,9 +515,10 @@ static int text(const font_t *f, int x, int y, const char *s, color_t fg, bool o
 				span(xx, xx + 1, yy, fg);
 			}
 		}
+		x += g.advance;
 	}
 #ifdef GFX_FIT_TRACE
-	trace(GFX_TRACE_TEXT, x0, y, (int)strlen(s0) * f->w, f->h, s0);	// after the glyph cells gfx_text_bg fills
+	trace(GFX_TRACE_TEXT, x0, y, gfx_text_width(f, s0), f->h, s0);	// after the glyph cells gfx_text_bg fills
 #endif
 	return x;
 }
@@ -530,49 +538,103 @@ int gfx_text_width(const font_t *f, const char *s)
 	if (strchr(s, TEXT_ALT_OPEN[0])) {
 		char first[ALT_TEXT_MAX];
 		bool more;
-		return (int)alt_expand(s, 0, first, sizeof first, &more) * f->w;
+		alt_expand(s, 0, first, sizeof first, &more);
+		s = first;
 	}
-	return (int)strlen(s) * f->w;
+	// The glyphs' own advances: a CJK character is 2 cells, so cells no longer equal the byte count
+	int w = 0;
+	for (const char *p = s; *p; ) {
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
+		w += g.advance;
+	}
+	return w;
 }
 
 void gfx_text_fit(const font_t *f, const char *src, int max_w, char *out, size_t out_len)
 {
-	size_t fit = max_w <= 0 ? 0 : (size_t)(max_w / f->w);
 	if (out_len == 0)
 		return;
-	if (fit > out_len - 1)
-		fit = out_len - 1;
 	// The longest set of alternates that fits; past the last one, shorten that with an ellipsis
 	char alt[ALT_TEXT_MAX];
 	const char *s = src;
-	size_t n = strlen(s);
 	if (strchr(src, TEXT_ALT_OPEN[0])) {
 		bool more = true;
 		for (int level = 0; more; level++) {
-			n = alt_expand(src, level, alt, sizeof alt, &more);
-			if (n <= fit)
+			alt_expand(src, level, alt, sizeof alt, &more);
+			if (gfx_text_width(f, alt) <= max_w)
 				break;
 		}
 		s = alt;
 	}
-	if (n <= fit) {
-		memcpy(out, s, n + 1);
+	if (gfx_text_width(f, s) <= max_w) {
+		size_t n = strlen(s);
+		if (n > out_len - 1) {
+			n = out_len - 1;	// the caller's buffer is small: cut at a character boundary, not mid-character
+			while (n > 0 && ((uint8_t)s[n] & 0xC0u) == 0x80u)
+				n--;
+		}
+		memcpy(out, s, n);
+		out[n] = 0;
 		return;
 	}
-	if (fit == 0) {
+	// The characters' byte offsets and cumulative widths, so the start and the end can be kept around an ellipsis
+	// without splitting a multi-byte character (a CJK character is 3 bytes and 2 cells, so cells no longer bound bytes)
+	enum { FIT_MAX = 64 };
+	uint16_t off[FIT_MAX + 1], wid[FIT_MAX + 1];
+	int n = 0, total = 0;
+	const char *p = s;
+	for (; *p && n < FIT_MAX; ) {
+		off[n] = (uint16_t)(p - s);
+		wid[n] = (uint16_t)total;
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
+		total += g.advance;
+		n++;
+	}
+	off[n] = (uint16_t)(p - s);
+	wid[n] = (uint16_t)total;
+	int keep_w = max_w - gfx_text_width(f, GLYPH_ELLIPSIS);
+	if (keep_w < 0) {
 		out[0] = 0;
+		return;
+	}
+	// The room splits between the start and the end around an ellipsis, the start getting the odd cell. The cell-based
+	// room holds either side's cells; a CJK character is 2 cells, so each side holds the longest run of characters
+	// within its cells (a multi-byte character is never split)
+	int keep_cells = keep_w / f->w;
+	int head_budget = ((keep_cells + 1) / 2) * f->w;
+	int tail_budget = (keep_cells / 2) * f->w;
+	int head_i = 0;
+	while (head_i < n && wid[head_i + 1] <= head_budget)
+		head_i++;
+	int tail_i = n;
+	while (tail_i > 0 && wid[n] - wid[tail_i - 1] <= tail_budget)
+		tail_i--;
+	if (head_i > tail_i)
+		head_i = tail_i;	// the start and the end would overlap: keep the end
+	// Drop from the longer side until the result fits the caller's buffer
+	while (off[head_i] + 1 + (off[n] - off[tail_i]) + 1 > out_len && (head_i > 0 || tail_i < n)) {
+		if (off[head_i] >= off[n] - off[tail_i] || tail_i == n)
+			head_i--;
+		else
+			tail_i++;
+	}
+	size_t hb = off[head_i], tb = off[tail_i];
+	if (hb == 0 && tb == off[n]) {
+		// Nothing but the ellipsis fits
+		out[0] = out_len > 1 ? GLYPH_ELLIPSIS[0] : 0;
+		if (out_len > 1)
+			out[1] = 0;
 #ifdef GFX_FIT_TRACE
 		gfx_fit_trace(s, out);
 #endif
 		return;
 	}
-	// Keep the start and the end, one glyph for the ellipsis between them (start gets the odd one)
-	size_t keep = fit - 1;
-	size_t head = (keep + 1) / 2, tail = keep - head;
-	memcpy(out, s, head);
-	out[head] = GLYPH_ELLIPSIS[0];
-	memcpy(out + head + 1, s + n - tail, tail);
-	out[fit] = 0;
+	memcpy(out, s, hb);
+	out[hb] = GLYPH_ELLIPSIS[0];
+	memcpy(out + hb + 1, s + tb, off[n] - tb);
+	out[hb + 1 + (off[n] - tb)] = 0;
 #ifdef GFX_FIT_TRACE
 	gfx_fit_trace(s, out);
 #endif

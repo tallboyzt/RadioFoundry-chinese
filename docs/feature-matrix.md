@@ -127,6 +127,9 @@ is `tools/bringup.py list --radio <id>`.
 | `lang_it` | off | off | off | off | off | off |
 | `lang_default_es` | off | off | off | off | off | off |
 | `lang_default_it` | off | off | off | off | off | off |
+| `lang_zh` | off | off | off | off | off | off |
+| `lang_default_zh` | off | off | off | off | off | off |
+| `font_cjk` | off | off | off | off | off | off |
 | `radio_controls` | not recorded | not recorded | not recorded | pass (seed) | not recorded | not recorded |
 | `settings_store` | not recorded | not recorded | not recorded | pass (seed) | not recorded | not recorded |
 | `codeplug_foreign` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
@@ -213,10 +216,13 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | `FONT_XL` | ● | ✕ | ✕ | ✕ | ✕ | ✕ |
 | `FONT_AA` | ● | ○ | ○ | ○ | ○ | ○ |
 | `FONT_BIG` | ● | ○ | ○ | ○ | ○ | ○ |
+| `FONT_CJK` | ○ | ○ | ○ | ○ | ○ | ○ |
 | `LANG_ES` | ● | ● | ● | ● | ● | ● |
 | `LANG_IT` | ○ | ○ | ○ | ○ | ○ | ○ |
+| `LANG_ZH` | ○ | ○ | ○ | ○ | ○ | ○ |
 | `LANG_DEFAULT_ES` | ○ | ○ | ○ | ○ | ○ | ○ |
 | `LANG_DEFAULT_IT` | ○ | ○ | ○ | ○ | ○ | ○ |
+| `LANG_DEFAULT_ZH` | ○ | ○ | ○ | ○ | ○ | ○ |
 | `UI_COLOR` | ● | ● | ✕ | ● | ● | ● |
 | `UI_SETTINGS` | ● | ● | ● | ● | ● | ● |
 | `SCAN` | ● | ● | ● | ● | ● | ● |
@@ -360,6 +366,7 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | Italian on the radio | `LANG_IT` | 17,304 | 17,304 | Off by default; measured with Spanish on (its text, and the hashes of strings Spanish leaves untranslated). Alone it costs about as much as Spanish |
 | Start in Spanish | `LANG_DEFAULT_ES` | 0 | 0 | The language the radio starts in until the user picks one (needs `LANG_ES`); the web flasher sets it from its Radio language choice |
 | Start in Italian | `LANG_DEFAULT_IT` | 0 | 0 | As `LANG_DEFAULT_ES` (needs `LANG_IT`) |
+| Simplified Chinese on the radio | `LANG_ZH` | — | — | The multi-byte renderer and the 16x16 CJK subset (`FONT_CJK`, Noto Sans CJK SC) with the catalog's text; needs `FONT_CJK`. The subset is one byte a pixel, about 32 bytes per character |
 
 ## Storage
 
