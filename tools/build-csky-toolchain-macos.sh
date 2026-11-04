@@ -16,9 +16,9 @@ export CPPFLAGS="$CPPFLAGS -I$BREW/opt/gmp/include -I$BREW/opt/mpfr/include -I$B
 export LDFLAGS="$LDFLAGS -L$BREW/opt/gmp/lib -L$BREW/opt/mpfr/lib -L$BREW/opt/mpc/lib -L$BREW/opt/isl/lib"
 # MAKEINFO=true: skip the GCC/texinfo doc builds (the docs are not needed and slow the build)
 export MAKEINFO=true
-# macOS's fdopen is declared behind a feature-test macro the configure probes don't define, so binutils' bundled zlib
-# thinks it is missing and redefines it, colliding with the SDK's declaration; tell it the function is there
-export ac_cv_func_fdopen=yes
+# The macOS SDK predefines TARGET_OS_MAC, which binutils' bundled zlib (zutil.h) reads as "a Mac without fdopen" and
+# redefines fdopen to NULL, colliding with the SDK's declaration; drop the SDK's target-OS macros for the build
+export CPPFLAGS="$CPPFLAGS -UMACOS -UTARGET_OS_MAC"
 # The upstream script finds platform_toolchain.sh beside itself; this wrapper is beside it, so give it the version it
 # needs (the upstream is copied to /tmp to apply --with-system-zlib, which a plain env var cannot reach)
 export GV=$("$(dirname "$0")/platform_toolchain.sh" hrc7000 version)
