@@ -161,6 +161,7 @@ static void io_init(void)
 
 // The GPS module on UART2 (hardware-db25d.md 3.1). Its RXD pad is PTA11, a GPIO until IO_DIPLEX0 bit 11 is cleared
 // (HR_C7000 user guide 4.4.4.4); the stock firmware's mux for it hasn't been traced
+#if CONFIG_GPS
 static const hrc_gps_cfg_t gps_cfg = {
 	.uart_base = UART2_BASE,
 	.irq = IRQ_UART2,
@@ -168,6 +169,7 @@ static const hrc_gps_cfg_t gps_cfg = {
 	.power_on_level = GPS_POWER_ON_LEVEL,
 	.rxd_mux_clear = 1u << 11,
 };
+#endif
 
 // Transmitter off from any context (board.h, docs/spec/crash-log.md 8; hardware-db25d.md 3.2): both TX supplies, both
 // PA selects and the PA drive (DAC B to 0, powered down), with PTA23 (RX_SUPPLY) high as in receive. RAM code, register
