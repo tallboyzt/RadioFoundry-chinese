@@ -213,12 +213,14 @@ static const hrc_flash_cfg_t flash_cfg = {
 };
 
 // The ATGM336H on UART1; PTA9 is UART1's RXD from io_init
+#if CONFIG_GPS
 static const hrc_gps_cfg_t gps_cfg = {
 	.uart_base = UART1_BASE,
 	.irq = IRQ_UART1,
 	.power_pin = PIN_GPS_POWER,
 	.power_on_level = GPS_POWER_ON_LEVEL,
 };
+#endif
 
 #if CONFIG_BCAST_FM
 // The RDA5807M on PTA25 / PTA26 (hardware-dm32.md 8.7): no enable line is known; its audio is assumed to reach the
