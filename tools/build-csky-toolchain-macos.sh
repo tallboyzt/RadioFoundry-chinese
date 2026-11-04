@@ -12,8 +12,9 @@
 set -e
 BREW=${BREW:-/opt/homebrew}
 export PATH="$BREW/opt/bison/bin:$BREW/opt/flex/bin:$BREW/opt/texinfo/bin:$BREW/opt/gmp/bin:$BREW/opt/mpfr/bin:$BREW/opt/mpc/bin:$BREW/opt/isl/bin:$PATH"
-export CPPFLAGS="$CPPFLAGS -I$BREW/opt/gmp/include -I$BREW/opt/mpfr/include -I$BREW/opt/mpc/include -I$BREW/opt/isl/include"
-export LDFLAGS="$LDFLAGS -L$BREW/opt/gmp/lib -L$BREW/opt/mpfr/lib -L$BREW/opt/mpc/lib -L$BREW/opt/isl/lib"
+# mpc is the command, libmpc the library: only libmpc has the include/lib directories GCC's configure needs
+export CPPFLAGS="$CPPFLAGS -I$BREW/opt/gmp/include -I$BREW/opt/mpfr/include -I$BREW/opt/libmpc/include -I$BREW/opt/isl/include"
+export LDFLAGS="$LDFLAGS -L$BREW/opt/gmp/lib -L$BREW/opt/mpfr/lib -L$BREW/opt/libmpc/lib -L$BREW/opt/isl/lib"
 # MAKEINFO=true: skip the GCC/texinfo doc builds (the docs are not needed and slow the build)
 export MAKEINFO=true
 # The macOS SDK predefines TARGET_OS_MAC, which binutils' bundled zlib (zutil.h) reads as "a Mac without fdopen" and
