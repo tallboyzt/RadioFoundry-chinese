@@ -475,11 +475,17 @@ static void test_cjk_text(void)
 	CHECK(gfx_init(&d));
 	gfx_clear(0);
 	gfx_text(f, 0, 0, "中", RGB565(255, 255, 255));
-	int ink = 0;
+	int ink = 0, bottom = 0;
 	for (int y = 0; y < f->h; y++)
 		for (int x = 0; x < 2 * f->w; x++)
-			ink += gfx_get_pixel(x, y) == RGB565(255, 255, 255);
+			if (gfx_get_pixel(x, y) == RGB565(255, 255, 255)) {
+				ink++;
+				if (y == f->h - 1)
+					bottom++;
+			}
 	CHECK(ink > 30);	// a full 16x16 glyph has plenty of ink
+	CHECK(bottom > 0);	// the glyph's ink reaches the cell's bottom: a baseline set too high would clip the
+				// top ("削顶") and leave the bottom rows empty
 	gfx_init(&disp);
 
 	// gfx_text_fit: by width, at character boundaries, and never wider than asked

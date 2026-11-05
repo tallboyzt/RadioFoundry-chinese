@@ -75,14 +75,27 @@ def read_chars(args):
 
 def render_glyphs(font_path, chars, w, h, ascent):
     font = ImageFont.truetype(font_path, w)  # a CJK glyph is a full-width cell, so the pixel size is the cell width
+    a = font.getmetrics()[0]
+    # A CJK glyph is taller than the compact Latin cell and its ink reaches further above the baseline, so the
+    # Latin cell's baseline (ascent) is too high and the glyph's top is clipped ("削顶"). Measure the ink's actual
+    # extent above and below the baseline across the glyphs and grow the cell (and the baseline) to fit them all.
+    top = 0
+    bot = 0
+    for ch in chars:
+        bb = font.getbbox(ch)
+        if bb:
+            top = max(top, a - bb[1])
+            bot = max(bot, bb[3] - a)
+    h = max(h, top + bot + 1)
+    ascent = max(ascent, top)
     out = {}
     for ch in chars:
         img = Image.new("L", (w, h), 0)
         d = ImageDraw.Draw(img)
         # The baseline lands at `ascent` rows from the top of the cell
-        d.text((0, ascent - font.getmetrics()[0]), ch, fill=255, font=font)
+        d.text((0, ascent - a), ch, fill=255, font=font)
         out[ord(ch)] = img
-    return out
+    return out, ascent, h
 
 
 def glyph_to_data(img, w):
@@ -143,7 +156,7 @@ def main():
     w, h, ascent = (int(m.group(i)) for i in (1, 2, 3))
 
     chars = read_chars(args)
-    glyphs = render_glyphs(args.font, chars, w, h, ascent)
+    glyphs, ascent, h = render_glyphs(args.font, chars, w, h, ascent)
 
     cps = sorted(glyphs)
     bits = bytearray()

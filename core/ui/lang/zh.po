@@ -758,7 +758,7 @@ msgstr "暂无收听记录"
 
 #: core/ui/ui_dual.c core/ui/ui_screens.c
 msgid "No tone"
-msgstr "无提示音"
+msgstr "无哑音"
 
 #: core/ui/ui_dual.c
 msgid "{Can't watch that channel: pick another|Can't watch that channel}"
