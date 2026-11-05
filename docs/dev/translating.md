@@ -49,10 +49,11 @@ With every language switched off, `TR()` is the text itself and the lookup is go
    `python3 tools/boards.py docs` then adds the switches to the generated tables of the feature matrix.
 
    For Chinese (`zh`) also: `CONFIG_FONT_CJK` (in `config/features.mk` and `core/config.h`), the multi-byte renderer's
-   switch, and `CONFIG_LANG_ZH=y needs CONFIG_FONT_CJK=y`. After translating the catalog, generate the CJK subset from
-   the characters it uses: `python3 tools/cjkfont.py NotoSansCJKsc-Regular.otf <chars> cjk_16x16
-   LICENSES/OFL-1.1-Noto.txt OFL-1.1 16x16:12 > core/ui/fonts/cjk_16x16.inc` (or `--po core/ui/lang/zh.po`), with the
-   OFL-1.1 Noto Sans CJK SC font (`LICENSES/OFL-1.1-Noto.txt`).
+   switch, and `CONFIG_LANG_ZH=y needs CONFIG_FONT_CJK=y`. After translating the catalog, generate the CJK subset for
+   each font size from the characters it uses: `python3 tools/cjkfont.py --po core/ui/lang/zh.po
+   NotoSansCJKsc-Regular.otf cjk_8x16 LICENSES/OFL-1.1-Noto.txt OFL-1.1 16x16:12 > core/ui/fonts/cjk_8x16.inc` (or with
+   `<chars>` instead of `--po`), once per size: `cjk_6x12` 12x12:9, `cjk_9x18` 18x18:14, `cjk_12x24` 24x24:19,
+   `cjk_16x32` 32x32:26, with the OFL-1.1 Noto Sans CJK SC font (`LICENSES/OFL-1.1-Noto.txt`).
 
    `tools/i18n.py --check` fails until every one of these is there.
 3. Translate (below), then run `python3 tools/i18n.py --check` and the host tests (`make -C tests/host`).

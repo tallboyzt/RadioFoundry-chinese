@@ -120,8 +120,8 @@ def text_to_bytes(text, where, code=""):
     return bytes(out)
 
 
-# A language whose text the radio draws with the multi-byte renderer and the CJK subset font (core/ui/fonts/
-# cjk_16x16.inc): its catalog may use the characters the subset covers (tools/cjkfont.py), and no more
+# A language whose text the radio draws with the multi-byte renderer and the CJK subset fonts (core/ui/fonts/
+# cjk_*.inc): its catalog may use the characters the subsets cover (tools/cjkfont.py), and no more
 CJK_CODES = {"zh"}
 
 

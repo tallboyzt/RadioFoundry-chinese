@@ -9,13 +9,37 @@
 #define FONT(var, n, N, bpp, cjk) \
 	const font_t var = { N##_W, N##_H, N##_ASCENT, N##_MISSING, bpp, FONT_LATIN1 && N##_LATIN1, n##_bits, n##_index, cjk }
 
-// The CJK subset for the 8x16 sizes (a full-width cell, twice their width): the translated catalog's glyphs, from
-// Noto Sans CJK (OFL-1.1, core/ui/fonts/cjk_16x16.inc and LICENSES/OFL-1.1.txt), converted by tools/cjkfont.py
+// The CJK subsets, one per font size (a full-width cell, twice each font's width): the translated catalog's glyphs,
+// from Noto Sans CJK (OFL-1.1, core/ui/fonts/cjk_*.inc and LICENSES/OFL-1.1-Noto.txt), converted by tools/cjkfont.py
 #if CONFIG_FONT_CJK
-#include "fonts/cjk_16x16.inc"
-#define CJK_16	(&cjk_16x16)
+#include "fonts/cjk_6x12.inc"
+#include "fonts/cjk_8x16.inc"
+#if CONFIG_FONT_BIG
+#include "fonts/cjk_9x18.inc"
+#endif
+#include "fonts/cjk_12x24.inc"
+#if CONFIG_FONT_XL
+#include "fonts/cjk_16x32.inc"
+#endif
+#define CJK_6X12	(&cjk_6x12)
+#define CJK_8X16	(&cjk_8x16)
+#if CONFIG_FONT_BIG
+#define CJK_9X18	(&cjk_9x18)
 #else
-#define CJK_16	NULL
+#define CJK_9X18	NULL
+#endif
+#define CJK_12X24	(&cjk_12x24)
+#if CONFIG_FONT_XL
+#define CJK_16X32	(&cjk_16x32)
+#else
+#define CJK_16X32	NULL
+#endif
+#else
+#define CJK_6X12	NULL
+#define CJK_8X16	NULL
+#define CJK_9X18	NULL
+#define CJK_12X24	NULL
+#define CJK_16X32	NULL
 #endif
 
 #include "fonts/spleen_5x8.inc"
@@ -40,14 +64,14 @@ bool font_big_on = true;
 #else
 #define AA(n)	font_##n
 #endif
-FONT(AA(6x12), jbmono_6x12, JBMONO_6X12, JBMONO_6X12_BPP, NULL);
-FONT(AA(8x16), jbmono_8x16, JBMONO_8X16, JBMONO_8X16_BPP, CJK_16);
-FONT(AA(12x24), jbmono_12x24, JBMONO_12X24, JBMONO_12X24_BPP, NULL);
+FONT(AA(6x12), jbmono_6x12, JBMONO_6X12, JBMONO_6X12_BPP, CJK_6X12);
+FONT(AA(8x16), jbmono_8x16, JBMONO_8X16, JBMONO_8X16_BPP, CJK_8X16);
+FONT(AA(12x24), jbmono_12x24, JBMONO_12X24, JBMONO_12X24_BPP, CJK_12X24);
 #if CONFIG_FONT_BIG
-FONT(AA(9x18), jbmono_9x18, JBMONO_9X18, JBMONO_9X18_BPP, NULL);
+FONT(AA(9x18), jbmono_9x18, JBMONO_9X18, JBMONO_9X18_BPP, CJK_9X18);
 #endif
 #if CONFIG_FONT_XL
-FONT(AA(16x32), jbmono_16x32, JBMONO_16X32, JBMONO_16X32_BPP, NULL);
+FONT(AA(16x32), jbmono_16x32, JBMONO_16X32, JBMONO_16X32_BPP, CJK_16X32);
 #endif
 #endif
 
@@ -55,12 +79,12 @@ FONT(AA(16x32), jbmono_16x32, JBMONO_16X32, JBMONO_16X32_BPP, NULL);
 #include "fonts/spleen_6x12.inc"
 #include "fonts/spleen_8x16.inc"
 #include "fonts/spleen_12x24.inc"
-FONT(font_6x12, spleen_6x12, SPLEEN_6X12, 1, NULL);
-FONT(font_8x16, spleen_8x16, SPLEEN_8X16, 1, CJK_16);
-FONT(font_12x24, spleen_12x24, SPLEEN_12X24, 1, NULL);
+FONT(font_6x12, spleen_6x12, SPLEEN_6X12, 1, CJK_6X12);
+FONT(font_8x16, spleen_8x16, SPLEEN_8X16, 1, CJK_8X16);
+FONT(font_12x24, spleen_12x24, SPLEEN_12X24, 1, CJK_12X24);
 #if CONFIG_FONT_XL
 #include "fonts/spleen_16x32.inc"
-FONT(font_16x32, spleen_16x32, SPLEEN_16X32, 1, NULL);
+FONT(font_16x32, spleen_16x32, SPLEEN_16X32, 1, CJK_16X32);
 #endif
 #endif
 
