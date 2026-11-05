@@ -2921,6 +2921,10 @@ msgid "Connections"
 msgstr "Conexiones"
 
 #: core/ui/ui_menus.c
+msgid "Power management"
+msgstr "Gestión de energía"
+
+#: core/ui/ui_menus.c
 msgid "Keys"
 msgstr "Teclas"
 
