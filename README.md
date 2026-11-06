@@ -88,6 +88,7 @@ by the UI simulator (`make -C tests/host ui-gallery`).</sub>
 | **Split duplex repeater** | Experimental: two radios on one MMDVM host as a full duplex repeater ([split-duplex](docs/spec/split-duplex.md)) |
 | **Programming** | The Codeplug Editor on the web site, or qdmr ([cps-protocol](docs/spec/cps-protocol.md)) |
 | **UI** | Designed from first principles, the same on a 128x64 mono LCD or a 240x320 color panel, keypad or knob, with press budgets checked by the host tests ([principles](docs/ux/principles.md), [screens](docs/ux/screens/)) |
+| **Languages** | English (the source), Spanish, Italian and Simplified Chinese, switched live in Settings > Display > Language; Chinese is drawn from a per-size CJK glyph subset ([translating](docs/dev/translating.md)) |
 
 What each radio supports is in the [feature matrix](docs/feature-matrix.md). Every feature that costs flash has a
 build switch ([build-config](docs/build-config.md)).
