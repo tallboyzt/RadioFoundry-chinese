@@ -151,6 +151,11 @@
 #ifndef CONFIG_FONT_BIG
 #define CONFIG_FONT_BIG			CONFIG_FONT_AA
 #endif
+// The CJK subset font: a translated catalog's characters, one subset per font size, from an OFL font
+// (core/ui/fonts/cjk_*.inc, built by tools/cjkfont.py). A Chinese interface needs it (CONFIG_LANG_ZH)
+#ifndef CONFIG_FONT_CJK
+#define CONFIG_FONT_CJK			0
+#endif
 // Languages the radio can show besides English (core/ui/lang/<code>.po, docs/dev/translating.md): one switch each.
 // CONFIG_LANG_ANY: at least one is built (the translation lookup, the Latin-1 glyphs); add each new switch to it
 #ifndef CONFIG_LANG_ES
@@ -159,7 +164,8 @@
 #ifndef CONFIG_LANG_IT
 #define CONFIG_LANG_IT			0
 #endif
-// Chinese brings its own 16x16 glyphs (core/ui/cjk_font_data.c) and UTF-8 text the text layer decodes (core/ui/gfx.c)
+// Chinese brings its own CJK glyphs (core/ui/fonts/cjk_*.inc, built by tools/cjkfont.py, needs CONFIG_FONT_CJK) and
+// UTF-8 text the text layer decodes (core/ui/gfx.c)
 #ifndef CONFIG_LANG_ZH
 #define CONFIG_LANG_ZH			0
 #endif

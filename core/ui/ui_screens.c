@@ -8,7 +8,6 @@
 #include "fmt.h"
 #include "i18n.h"
 #include "ui_svc.h"
-#include "cjk_font.h"	// CJK_FONT_H: the line height a CJK language needs (CONFIG_LANG_ZH)
 #include "config.h"
 
 ui_layout_t ui_layout;
@@ -176,13 +175,12 @@ void ui_layout_init(void)
 	}
 
 #if CONFIG_LANG_ZH
-	// A CJK character is 16 px tall (core/ui/cjk_font.h), so a line that may hold Chinese needs a 16 px font. Where the
-	// layout already draws its words in one (the 240 px class), only the smallest font, which text pages use, moves up to
-	// it - and only while the language in use is a wide one, so English and Spanish keep their layout in the same build.
-	// Where the layout draws its words in the 5x8 or 6x12 font (the 128x64 and 160x128 classes) Chinese cannot be shown
-	// at all: there is no room for 16 px lines, so the layout stays as it is and the board must not build the language
-	// in (BOARD_UNSUPPORTED, docs/build-config.md)
-	if (L->small->h >= CJK_FONT_H && L->tiny->h < CJK_FONT_H && lang_wide(lang_current()))
+	// A CJK character draws from the font's own CJK subset (core/ui/font.h): the 5x8 font has none, so where the
+	// layout's words use a font that does (a 160 px panel's 6x12), the smallest font, which hints and text pages use,
+	// moves up to it - and only while the language in use is a wide one, so English and Spanish keep their layout in
+	// the same build. A layout whose words are drawn in the 5x8 font (a 128x64 display) cannot show Chinese at all
+	// (each character is a box), so the layout stays as it is
+	if (L->small->cjk != NULL && L->tiny->cjk == NULL && lang_wide(lang_current()))
 		L->tiny = L->small;
 #endif
 
@@ -2476,33 +2474,36 @@ static int list_bottom(const ui_state_t *s)
 // word longer than the line, never shortening), returns where the next line starts
 static const char *wrap_line(const font_t *f, const char *t, int max_w, char *line, size_t cap)
 {
-#if CONFIG_LANG_ZH
-	// A character at a time: a CJK character may end a line as well as a space, and the width is measured on whole
-	// characters, so a line never holds half of one
-	int n = 0, cut = 0;
-	while (t[n] && t[n] != '\n') {
-		int seq;
-		uint32_t cp = gfx_utf8_next(t + n, &seq);
-		if (n + seq > (int)cap - 1)
+	size_t n = 0, cut = 0;		// bytes; cut is the end of the last space (a word boundary is a char boundary)
+	int w = 0;
+	const char *p = t;
+	while (*p && *p != '\n') {
+		const char *start = p;
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
+		size_t cl = (size_t)(p - start);
+		if (n + cl + 1 > cap || w + g.advance > max_w)
 			break;
-		memcpy(line + n, t + n, (size_t)seq);
-		n += seq;
+		memcpy(line + n, start, cl);
+		n += cl;
 		line[n] = 0;
-		if (gfx_text_width(f, line) > max_w) {
-			n -= seq;
-			line[n] = 0;
-			break;
-		}
-		if (t[n - seq] == ' ' || cp > 0xFF)
+		if (*start == ' ')
 			cut = n;
+		w += g.advance;
 	}
-	bool fits_all = t[n] == 0 || t[n] == '\n';
+	bool fits_all = *p == 0 || *p == '\n';
 	if (!fits_all && cut > 0)
 		n = cut;
 	if (n == 0 && t[0] && t[0] != '\n') {
-		int seq;
-		gfx_utf8_next(t, &seq);		// narrower than one character: still move on
-		n = seq < (int)cap ? seq : (int)cap - 1;
+		// narrower than one glyph: still move on with that character (a box if it can't fit)
+		font_glyph_utf8_t g;
+		const char *q = t;
+		font_glyph_utf8(f, &q, &g);
+		size_t cl = (size_t)(q - t);
+		if (cl + 1 <= cap) {
+			memcpy(line, t, cl);
+			n = cl;
+		}
 	}
 	line[n] = 0;
 	t += n;
@@ -2512,31 +2513,6 @@ static const char *wrap_line(const font_t *f, const char *t, int max_w, char *li
 		while (*t == ' ')
 			t++;
 	return t;
-#else
-	int n = 0, cut = 0;
-	while (t[n] && t[n] != '\n' && n < (int)cap - 1) {
-		line[n] = t[n];
-		line[n + 1] = 0;
-		if (gfx_text_width(f, line) > max_w)
-			break;
-		if (t[n] == ' ')
-			cut = n;
-		n++;
-	}
-	bool fits_all = t[n] == 0 || t[n] == '\n';
-	if (!fits_all && cut > 0)
-		n = cut;
-	if (n == 0 && t[0] && t[0] != '\n')
-		n = 1;		// narrower than one glyph: still move on
-	line[n] = 0;
-	t += n;
-	if (*t == '\n')
-		t++;		// an empty line ("\n\n") stays one line
-	else
-		while (*t == ' ')
-			t++;
-	return t;
-#endif
 }
 
 // Word wrap into lines of the screen's width; draws them (when draw) and returns the y after the last line
@@ -2627,37 +2603,45 @@ int ui_draw_text_page(const radio_view_t *v, const ui_state_t *s, const char *ti
 // message), where the start is what matters
 static void fit_end(const font_t *f, const char *s, int max_w, char *out, size_t len)
 {
-#if CONFIG_LANG_ZH
-	// Chinese has no spaces to break at, and a character is not one byte: a line with a wide character is cut by whole
-	// characters at the end; Latin text keeps the word cut below
-	gfx_text_fit_end(f, s, max_w, out, len);
-#else
-	size_t n = strlen(s), fit = max_w <= 0 ? 0 : (size_t)(max_w / f->w);
-	if (fit >= len)
-		fit = len - 1;
-	if (n <= fit) {
-		memcpy(out, s, n + 1);
+	if (gfx_text_width(f, s) <= max_w) {
+		size_t n = strlen(s);
+		if (n > len - 1) {
+			n = len - 1;	// the caller's buffer is small: cut at a character boundary, not mid-character
+			while (n > 0 && ((uint8_t)s[n] & 0xC0u) == 0x80u)
+				n--;
+		}
+		memcpy(out, s, n);
+		out[n] = 0;
 		return;
 	}
-	if (fit == 0) {
-		out[0] = 0;
-		return;
+	size_t nbytes = 0, nchars = 0, space_byte = 0, space_char = 0;
+	int w = 0, ell = gfx_text_width(f, GLYPH_ELLIPSIS);
+	const char *p = s;
+	while (*p) {
+		const char *start = p;
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
+		if (w + g.advance + ell > max_w || (size_t)(p - s) + ell + 1 > len)
+			break;
+		if (*start == ' ') {
+			space_byte = (size_t)(p - s);
+			space_char = nchars;
+		}
+		nbytes = (size_t)(p - s);
+		nchars++;
+		w += g.advance;
 	}
-	size_t keep = fit - 1;
-	size_t cut = keep;
-	while (cut > 0 && s[cut] != ' ')
+	size_t cut = nbytes;		// end at a word unless that throws away more than half
+	if (space_char > 0 && space_char >= nchars / 2)
+		cut = space_byte;
+	while (cut > 0 && s[cut - 1] == ' ')
 		cut--;
-	if (cut >= keep / 2)
-		keep = cut;		// end at a word unless that throws away more than half
-	while (keep > 0 && s[keep - 1] == ' ')
-		keep--;
-	memcpy(out, s, keep);
-	out[keep] = GLYPH_ELLIPSIS[0];
-	out[keep + 1] = 0;
+	memcpy(out, s, cut);
+	out[cut] = GLYPH_ELLIPSIS[0];
+	out[cut + 1] = 0;
 #ifdef GFX_FIT_TRACE
 	gfx_fit_trace(s, out);
 #endif
-#endif	// CONFIG_LANG_ZH
 }
 
 // A row's label (left) and value (right, may hold text alternates). The label says what the row is, so it is kept

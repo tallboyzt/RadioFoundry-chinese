@@ -471,12 +471,11 @@ TESTS   += gfxTest
 gfxTest: gfxTest.c $(UI) $(LANG_H) $(wildcard $(CORE)/ui/*.h $(CORE)/ui/fonts/*.inc)
 	$(CC) $(CFLAGS) -I$(ROOT)/hal -Iout/gen -Wshadow -DGFX_INDEXED=1 -DCONFIG_NET_WEBCTL=1 -o $@ gfxTest.c $(UI)
 
-# The same with a CJK catalog (CONFIG_LANG_ZH): text is UTF-8, a character of it is a 16 px glyph of the CJK face, widths
-# add up in pixels, and a cut keeps whole characters (core/ui/cjk_font.h, docs/spec/ui.md 2.5)
-CJK     := $(CORE)/ui/cjk_font.c $(CORE)/ui/cjk_font_data.c
+# The same with a CJK catalog (CONFIG_LANG_ZH + CONFIG_FONT_CJK): text is UTF-8, a character of it is a 2-cell glyph of
+# the font's CJK subset, widths add up in pixels, and a cut keeps whole characters (core/ui/font.h, docs/spec/ui.md 2.5)
 TESTS   += gfxTestZh
-gfxTestZh: gfxTest.c $(UI) $(CJK) $(LANG_H) $(wildcard $(CORE)/ui/*.h $(CORE)/ui/fonts/*.inc)
-	$(CC) $(CFLAGS) -I$(ROOT)/hal -Iout/gen -Wshadow -DGFX_INDEXED=1 -DCONFIG_NET_WEBCTL=1 -DCONFIG_LANG_ZH=1 -o $@ gfxTest.c $(UI) $(CJK)
+gfxTestZh: gfxTest.c $(UI) $(LANG_H) $(wildcard $(CORE)/ui/*.h $(CORE)/ui/fonts/*.inc)
+	$(CC) $(CFLAGS) -I$(ROOT)/hal -Iout/gen -Wshadow -DGFX_INDEXED=1 -DCONFIG_NET_WEBCTL=1 -DCONFIG_LANG_ZH=1 -DCONFIG_FONT_CJK=1 -o $@ gfxTest.c $(UI)
 
 # The language lookup and the fonts' Latin-1 glyphs, with Spanish, without, and with Spanish the default (core/ui/i18n.c,
 # docs/spec/ui.md 2.5)

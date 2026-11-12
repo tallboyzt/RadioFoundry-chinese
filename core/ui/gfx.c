@@ -3,7 +3,6 @@
 // Frame buffer drawing: primitives, text, icons, and a flush that sends only the rows whose content changed
 #include <string.h>
 #include "gfx.h"
-#include "cjk_font.h"
 
 static uint32_t fb_words[GFX_FB_BYTES / 4];
 static const hal_display_t *display;
@@ -393,7 +392,7 @@ static void icon_glyph(const font_t *f, int x, int y, uint8_t c, color_t fg)
 }
 
 // Extra glyphs a font lacks, drawn from primitives inside the cell at x, y
-static void fallback_glyph(const font_t *f, int x, int y, uint8_t c, color_t fg)
+static void fallback_glyph(const font_t *f, int x, int y, uint8_t c, int w, color_t fg)
 {
 	int dot = f->w >= 10 ? 2 : 1;
 	int base = y + f->ascent;
@@ -425,8 +424,8 @@ static void fallback_glyph(const font_t *f, int x, int y, uint8_t c, color_t fg)
 	case 0x86:
 		icon_glyph(f, x, y, c, fg);
 		break;
-	default:	// not drawable: a box
-		gfx_rect(x + 1, y + 1, f->w - 2, f->ascent - 1, fg);
+	default:	// not drawable: a box the width of the cell it would have filled (a CJK character spans two)
+		gfx_rect(x + 1, y + 1, w - 2, f->ascent - 1, fg);
 		break;
 	}
 }
@@ -478,45 +477,6 @@ size_t gfx_text_alt(const char *s, int level, char *out, size_t cap, bool *more)
 	return alt_expand(s, level, out, cap, more);
 }
 
-#if CONFIG_LANG_ZH
-// A CJK catalog's text is UTF-8 (tools/i18n.py), so the text layer steps a character at a time. Only a three-byte
-// sequence is UTF-8: a Chinese catalog has nothing below U+0800, so every other byte is one character the Latin font
-// draws (ASCII, one of font.h's glyphs, or a Latin-1 letter: a channel name, a received message and the Spanish and
-// Italian catalogs are Latin-1, and must not turn into boxes in a build with the CJK face). A CJK glyph is 16 px wide,
-// the height of the 8x16 font, and sits at the bottom of the cell so it shares the Latin baseline.
-uint32_t gfx_utf8_next(const char *s, int *len)
-{
-	const uint8_t *b = (const uint8_t *)s;
-	if ((b[0] & 0xF0) == 0xE0 && (b[1] & 0xC0) == 0x80 && (b[2] & 0xC0) == 0x80) {
-		uint32_t cp = ((uint32_t)(b[0] & 0x0Fu) << 12) | ((uint32_t)(b[1] & 0x3Fu) << 6) | (uint32_t)(b[2] & 0x3Fu);
-		if (cp >= 0x800) {	// not an overlong form
-			*len = 3;
-			return cp;
-		}
-	}
-	*len = 1;			// ASCII, a glyph byte (0x80..0x85), or Latin-1 text
-	return b[0];
-}
-
-// How far a character moves the pen in a font: its Latin cell, or a CJK glyph's 16 (a missing one is a box as wide)
-static int char_w(const font_t *f, uint32_t cp)
-{
-	return cp > 0xFF ? CJK_FONT_W : f->w;
-}
-
-static int text_w(const font_t *f, const char *s)
-{
-	int w = 0;
-	while (*s) {
-		int seq;
-		uint32_t cp = gfx_utf8_next(s, &seq);
-		w += char_w(f, cp);
-		s += seq;
-	}
-	return w;
-}
-#endif
-
 static int text(const font_t *f, int x, int y, const char *s, color_t fg, bool opaque, color_t bg)
 {
 	char first[ALT_TEXT_MAX];
@@ -529,96 +489,38 @@ static int text(const font_t *f, int x, int y, const char *s, color_t fg, bool o
 	const char *s0 = s;
 	int x0 = x;
 #endif
-#if CONFIG_LANG_ZH
-	while (*s) {
-		int seq;
-		uint32_t cp = gfx_utf8_next(s, &seq);
-		int adv = char_w(f, cp);
-		int px = x + ox, py = y + oy;	// panel coordinates for the clip tests and spans
-		if (px >= clip_x1)
-			break;
-		if (px + adv <= clip_x0 || py >= clip_y1 || py + f->h <= clip_y0) {
-			s += seq;
-			x += adv;
-			continue;
-		}
-		if (opaque)
-			gfx_fill(x, y, adv, f->h, bg);
-		const uint8_t *g;
-		int top = 0, rows = 0;
-		if (cp > 0xFF) {
-			g = cjk_font_glyph(cp);
-			top = f->h - CJK_FONT_H;	// the bottom of the cell: on the Latin baseline
-			rows = CJK_FONT_H;
-			if (top < 0) {			// a cell shorter than the glyph (a layout that must not hold Chinese): clip it to the cell
-				rows += top;		// top is negative: the rows above the cell go
-				if (g != NULL)
-					g += (size_t)(CJK_FONT_H - rows) * CJK_FONT_ROW_BYTES;
-				top = 0;
-			}
-			if (g == NULL)
-				gfx_rect(x + 1, y + 1, adv - 2, f->h - 2, fg);	// no glyph: a box
-		} else {
-			g = font_glyph(f, (uint8_t)cp, &top, &rows);
-			if (g == NULL)
-				fallback_glyph(f, x, y, (uint8_t)cp, fg);
-		}
-		if (g != NULL) {
-			int bytes = cp > 0xFF ? CJK_FONT_ROW_BYTES : (f->w * f->bpp + 7) / 8;
-			for (int r = 0; r < rows; r++, g += bytes) {
-				int yy = py + top + r;
-				if (yy < clip_y0 || yy >= clip_y1)
-					continue;
-				for (int col = 0; col < adv; col++) {
-#if CONFIG_FONT_AA
-					unsigned a = (cp <= 0xFF && f->bpp == 2) ?
-						     (g[col >> 2] >> (6 - 2 * (col & 3))) & 3u :
-						     (g[col >> 3] & (0x80u >> (col & 7))) ? 3u : 0;
-#else
-					unsigned a = (g[col >> 3] & (0x80u >> (col & 7))) ? 3u : 0;
-#endif
-					int xx = px + col;
-					if (a == 0 || xx < clip_x0 || xx >= clip_x1)
-						continue;
-#if CONFIG_FONT_AA
-					if (a != 3) {
-						edge_pixel(xx, yy, fg, a);
-						continue;
-					}
-#endif
-					span(xx, xx + 1, yy, fg);
-				}
-			}
-		}
-		s += seq;
-		x += adv;
-	}
-#else
 	int bytes = (f->w * f->bpp + 7) / 8;
-	for (; *s; s++, x += f->w) {
+	for (const char *p = s; *p; ) {
+		const char *start = p;
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
 		int px = x + ox, py = y + oy;	// panel coordinates for the clip tests and spans
 		if (px >= clip_x1)
 			break;
-		if (px + f->w <= clip_x0 || py >= clip_y1 || py + f->h <= clip_y0)
-			continue;
-		if (opaque)
-			gfx_fill(x, y, f->w, f->h, bg);
-		int top, rows;
-		const uint8_t *g = font_glyph(f, (uint8_t)*s, &top, &rows);
-		if (g == NULL) {
-			fallback_glyph(f, x, y, (uint8_t)*s, fg);
+		if (px + g.w <= clip_x0 || py >= clip_y1 || py + g.h <= clip_y0) {
+			x += g.advance;
 			continue;
 		}
-		for (int r = 0; r < rows; r++, g += bytes) {
-			int yy = py + top + r;
+		if (opaque)
+			gfx_fill(x, y, g.w, g.h, bg);
+		if (g.bits == NULL) {
+			// A byte the font cannot draw: its glyph code (0x80..0x85) or, for a multi-byte character the CJK
+			// subset lacks, a box. c = 0 is not a glyph code, so it draws the box
+			fallback_glyph(f, x, y, p - start == 1 ? (uint8_t)*start : 0, g.w, fg);
+			x += g.advance;
+			continue;
+		}
+		bytes = (g.w * g.bpp + 7) / 8;
+		for (int r = 0; r < g.rows; r++, g.bits += bytes) {
+			int yy = py + g.top + r;
 			if (yy < clip_y0 || yy >= clip_y1)
 				continue;
-			for (int col = 0; col < f->w; col++) {
+			for (int col = 0; col < g.w; col++) {
 #if CONFIG_FONT_AA
-				unsigned a = f->bpp == 2 ? (g[col >> 2] >> (6 - 2 * (col & 3))) & 3u :
-					     (g[col >> 3] & (0x80u >> (col & 7))) ? 3u : 0;
+				unsigned a = g.bpp == 2 ? (g.bits[col >> 2] >> (6 - 2 * (col & 3))) & 3u :
+					     (g.bits[col >> 3] & (0x80u >> (col & 7))) ? 3u : 0;
 #else
-				unsigned a = (g[col >> 3] & (0x80u >> (col & 7))) ? 3u : 0;
+				unsigned a = (g.bits[col >> 3] & (0x80u >> (col & 7))) ? 3u : 0;
 #endif
 				int xx = px + col;
 				if (a == 0 || xx < clip_x0 || xx >= clip_x1)
@@ -632,10 +534,10 @@ static int text(const font_t *f, int x, int y, const char *s, color_t fg, bool o
 				span(xx, xx + 1, yy, fg);
 			}
 		}
+		x += g.advance;
 	}
-#endif
 #ifdef GFX_FIT_TRACE
-	trace(GFX_TRACE_TEXT, x0, y, x - x0, f->h, s0);	// after the glyph cells gfx_text_bg fills
+	trace(GFX_TRACE_TEXT, x0, y, gfx_text_width(f, s0), f->h, s0);	// after the glyph cells gfx_text_bg fills
 #endif
 	return x;
 }
@@ -652,69 +554,42 @@ int gfx_text_bg(const font_t *f, int x, int y, const char *s, color_t fg, color_
 
 int gfx_text_width(const font_t *f, const char *s)
 {
-#if CONFIG_LANG_ZH
-	char first[ALT_TEXT_MAX];
 	if (strchr(s, TEXT_ALT_OPEN[0])) {
+		char first[ALT_TEXT_MAX];
 		bool more;
 		alt_expand(s, 0, first, sizeof first, &more);
 		s = first;
 	}
-	return text_w(f, s);
-#else
-	if (strchr(s, TEXT_ALT_OPEN[0])) {
-		char first[ALT_TEXT_MAX];
-		bool more;
-		return (int)alt_expand(s, 0, first, sizeof first, &more) * f->w;
+	// The glyphs' own advances: a CJK character is 2 cells, so cells no longer equal the byte count
+	int w = 0;
+	for (const char *p = s; *p; ) {
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
+		w += g.advance;
 	}
-	return (int)strlen(s) * f->w;
-#endif
+	return w;
 }
 
-// The Latin cut: the start and the end, one glyph for the ellipsis between them (the start gets the odd one)
-static void fit_latin(const font_t *f, const char *s, int max_w, char *out, size_t out_len)
+void gfx_text_fit(const font_t *f, const char *src, int max_w, char *out, size_t out_len)
 {
-	size_t fit = max_w <= 0 ? 0 : (size_t)(max_w / f->w);
-	if (fit > out_len - 1)
-		fit = out_len - 1;
-	size_t n = strlen(s);
-	if (n <= fit) {
-		memcpy(out, s, n + 1);
+	if (out_len == 0)
 		return;
+	// The longest set of alternates that fits; past the last one, shorten that with an ellipsis
+	char alt[ALT_TEXT_MAX];
+	const char *s = src;
+	if (strchr(src, TEXT_ALT_OPEN[0])) {
+		bool more = true;
+		for (int level = 0; more; level++) {
+			alt_expand(src, level, alt, sizeof alt, &more);
+			if (gfx_text_width(f, alt) <= max_w)
+				break;
+		}
+		s = alt;
 	}
-	if (fit == 0) {
-		out[0] = 0;
-		return;
-	}
-	size_t keep = fit - 1;
-	size_t head = (keep + 1) / 2, tail = keep - head;
-	memcpy(out, s, head);
-	out[head] = GLYPH_ELLIPSIS[0];
-	memcpy(out + head + 1, s + n - tail, tail);
-	out[fit] = 0;
-}
-
-#if CONFIG_LANG_ZH
-// True when the text holds a character only the CJK face can draw
-static bool has_wide(const char *s)
-{
-	while (*s) {
-		int seq;
-		if (gfx_utf8_next(s, &seq) > 0xFF)
-			return true;
-		s += seq;
-	}
-	return false;
-}
-
-// The CJK cut: at the end, one whole character at a time, never inside one (docs/spec/ui.md 2.5). Chinese has no spaces
-// to cut at the middle, and the start of a short line carries its meaning
-static void fit_cjk(const font_t *f, const char *s, int max_w, char *out, size_t out_len)
-{
-	size_t n = strlen(s);
-	size_t cap = out_len - 1;
-	if (text_w(f, s) <= max_w) {
-		if (n > cap) {			// a buffer too small for the whole text: cut whole characters
-			n = cap;
+	if (gfx_text_width(f, s) <= max_w) {
+		size_t n = strlen(s);
+		if (n > out_len - 1) {
+			n = out_len - 1;	// the caller's buffer is small: cut at a character boundary, not mid-character
 			while (n > 0 && ((uint8_t)s[n] & 0xC0u) == 0x80u)
 				n--;
 		}
@@ -722,104 +597,65 @@ static void fit_cjk(const font_t *f, const char *s, int max_w, char *out, size_t
 		out[n] = 0;
 		return;
 	}
-	int room = max_w - f->w;		// the ellipsis takes a cell
-	if (room <= 0) {
+	// The characters' byte offsets and cumulative widths, so the start and the end can be kept around an ellipsis
+	// without splitting a multi-byte character (a CJK character is 3 bytes and 2 cells, so cells no longer bound bytes)
+	enum { FIT_MAX = 64 };
+	uint16_t off[FIT_MAX + 1], wid[FIT_MAX + 1];
+	int n = 0, total = 0;
+	const char *p = s;
+	for (; *p && n < FIT_MAX; ) {
+		off[n] = (uint16_t)(p - s);
+		wid[n] = (uint16_t)total;
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
+		total += g.advance;
+		n++;
+	}
+	off[n] = (uint16_t)(p - s);
+	wid[n] = (uint16_t)total;
+	int keep_w = max_w - gfx_text_width(f, GLYPH_ELLIPSIS);
+	if (keep_w < 0) {
 		out[0] = 0;
 		return;
 	}
-	int w = 0;
-	n = 0;
-	while (s[n]) {
-		int seq;
-		uint32_t cp = gfx_utf8_next(s + n, &seq);
-		int adv = char_w(f, cp);
-		if (w + adv > room || n + (size_t)seq > cap)
-			break;
-		w += adv;
-		n += (size_t)seq;
+	// The room splits between the start and the end around an ellipsis, the start getting the odd cell. The cell-based
+	// room holds either side's cells; a CJK character is 2 cells, so each side holds the longest run of characters
+	// within its cells (a multi-byte character is never split)
+	int keep_cells = keep_w / f->w;
+	int head_budget = ((keep_cells + 1) / 2) * f->w;
+	int tail_budget = (keep_cells / 2) * f->w;
+	int head_i = 0;
+	while (head_i < n && wid[head_i + 1] <= head_budget)
+		head_i++;
+	int tail_i = n;
+	while (tail_i > 0 && wid[n] - wid[tail_i - 1] <= tail_budget)
+		tail_i--;
+	if (head_i > tail_i)
+		head_i = tail_i;	// the start and the end would overlap: keep the end
+	// Drop from the longer side until the result fits the caller's buffer
+	while ((size_t)off[head_i] + 1 + (off[n] - off[tail_i]) + 1 > out_len && (head_i > 0 || tail_i < n)) {
+		if (off[head_i] >= off[n] - off[tail_i] || tail_i == n)
+			head_i--;
+		else
+			tail_i++;
 	}
-	memcpy(out, s, n);
-	if (n < cap)
-		out[n++] = GLYPH_ELLIPSIS[0];
-	out[n] = 0;
-}
-
-// The end cut: keep the start and shorten at the end, at a word for Latin text and at a whole character for Chinese (a
-// message preview, a text page's last line, a row's label). A line without a wide character keeps the word cut every
-// other language has, so an English or Spanish screen looks the same in a build with the CJK face
-void gfx_text_fit_end(const font_t *f, const char *s, int max_w, char *out, size_t out_len)
-{
-	if (out_len == 0)
-		return;
-	if (has_wide(s)) {
-		fit_cjk(f, s, max_w, out, out_len);
+	size_t hb = off[head_i], tb = off[tail_i];
+	if (hb == 0 && tb == off[n]) {
+		// Nothing but the ellipsis fits
+		out[0] = out_len > 1 ? GLYPH_ELLIPSIS[0] : 0;
+		if (out_len > 1)
+			out[1] = 0;
 #ifdef GFX_FIT_TRACE
-		if (strcmp(s, out) != 0)
-			gfx_fit_trace(s, out);
+		gfx_fit_trace(s, out);
 #endif
 		return;
 	}
-	size_t n = strlen(s), fit = max_w <= 0 ? 0 : (size_t)(max_w / f->w);
-	if (fit >= out_len)
-		fit = out_len - 1;
-	if (n <= fit) {
-		memcpy(out, s, n + 1);
-		return;
-	}
-	if (fit == 0) {
-		out[0] = 0;
-		return;
-	}
-	size_t keep = fit - 1;
-	size_t cut = keep;
-	while (cut > 0 && s[cut] != ' ')
-		cut--;
-	if (cut >= keep / 2)
-		keep = cut;			// end at a word unless that throws away more than half
-	while (keep > 0 && s[keep - 1] == ' ')
-		keep--;
-	memcpy(out, s, keep);
-	out[keep] = GLYPH_ELLIPSIS[0];
-	out[keep + 1] = 0;
+	memcpy(out, s, hb);
+	out[hb] = GLYPH_ELLIPSIS[0];
+	memcpy(out + hb + 1, s + tb, off[n] - tb);
+	out[hb + 1 + (off[n] - tb)] = 0;
 #ifdef GFX_FIT_TRACE
 	gfx_fit_trace(s, out);
-#endif
-}
-#endif
-
-void gfx_text_fit(const font_t *f, const char *src, int max_w, char *out, size_t out_len)
-{
-	if (out_len == 0)
-		return;
-	// The longest set of alternates that fits; the last one is what gets shortened below
-	char alt[ALT_TEXT_MAX];
-	const char *s = src;
-	if (strchr(src, TEXT_ALT_OPEN[0])) {
-		bool more = true;
-		for (int level = 0; more; level++) {
-			bool next;
-			alt_expand(src, level, alt, sizeof alt, &next);
-			more = next;
-			// It has to fit the space and the buffer: out_len - 1 bytes, whatever their width
-#if CONFIG_LANG_ZH
-			if (text_w(f, alt) <= max_w && strlen(alt) <= out_len - 1)
-#else
-			if ((int)strlen(alt) * f->w <= max_w && strlen(alt) <= out_len - 1)
-#endif
-				break;
-		}
-		s = alt;
-	}
-#if CONFIG_LANG_ZH
-	// A line with Chinese is cut at the end; a line of Latin keeps the middle cut every other language has
-	if (has_wide(s))
-		fit_cjk(f, s, max_w, out, out_len);
-	else
-#endif
-		fit_latin(f, s, max_w, out, out_len);
-#ifdef GFX_FIT_TRACE
-	if (strcmp(s, out) != 0)	// only a text that was actually shortened (the simulator lists them)
-		gfx_fit_trace(s, out);
 #endif
 }
 

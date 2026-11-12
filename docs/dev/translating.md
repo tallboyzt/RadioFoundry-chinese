@@ -49,6 +49,13 @@ With every language switched off, `TR()` is the text itself and the lookup is go
 
    `python3 tools/boards.py docs` then adds the switches to the generated tables of the feature matrix.
 
+   For Chinese (`zh`) also: `CONFIG_FONT_CJK` (in `config/features.mk` and `core/config.h`), the multi-byte renderer's
+   switch, and `CONFIG_LANG_ZH=y needs CONFIG_FONT_CJK=y`. After translating the catalog, generate the CJK subset for
+   each font size from the characters it uses: `python3 tools/cjkfont.py --po core/ui/lang/zh.po
+   NotoSansCJKsc-Regular.otf cjk_8x16 LICENSES/OFL-1.1-Noto.txt OFL-1.1 16x16:12 > core/ui/fonts/cjk_8x16.inc` (or with
+   `<chars>` instead of `--po`), once per size: `cjk_6x12` 12x12:9, `cjk_9x18` 18x18:14, `cjk_12x24` 24x24:19,
+   `cjk_16x32` 32x32:26, with the OFL-1.1 Noto Sans CJK SC font (`LICENSES/OFL-1.1-Noto.txt`).
+
    `tools/i18n.py --check` fails until every one of these is there.
 3. Translate (below), then run `python3 tools/i18n.py --check` and the host tests (`make -C tests/host`).
 4. Look at it: build the gallery in your language (below), or flash a build and pick it in Settings > Display >
@@ -98,29 +105,28 @@ above: one catalog, one switch, the same checks.
 
 | Step | What |
 |---|---|
-| The catalog | `tools/i18n.py --new zh 中文 Chinese` writes it with an `X-Glyphs: utf8` header and an `X-Language-Name-Latin` one. A catalog with that header holds UTF-8: ASCII, `font.h`'s glyphs, and characters the CJK face has. Two-byte characters (Latin-1 letters with an accent) are not allowed: the text layer decodes only three-byte sequences, so that Latin-1 names, messages and the Spanish catalog keep working in a build with the CJK face. `--check` lists every character it rejects or the face lacks |
+| The catalog | `tools/i18n.py --new zh 中文 Chinese` writes it with an `X-Glyphs: utf8` header and an `X-Language-Name-Latin` one. A catalog with that header holds UTF-8: ASCII, `font.h`'s glyphs, and characters the CJK subsets have. Two-byte characters (Latin-1 letters with an accent) are not allowed: the text layer decodes only three-byte sequences, so that Latin-1 names, messages and the Spanish catalog keep working in a build with the CJK face. `--check` lists every character it rejects or the subsets lack |
 | The list | A build without the CJK face (`CONFIG_LANG_ZH` off) still lists the language, dimmed: it shows `X-Language-Name-Latin` ("Chinese"), because the Latin font would draw the UTF-8 name as boxes |
-| The face | `tools/cjkfont.py` rasterizes every character the catalogs use into a 16x16 one-bit glyph and writes the table the firmware links. 480 characters are 15.4 KB; with the text, Chinese costs 32,856 bytes. Run it whenever a translation adds a character (`--check` fails until it does) and commit both |
-| The font | One whose license allows embedding bitmaps: an SIL OFL font such as Noto Sans CJK SC or Source Han Sans. The generated file carries the font's copyright, its full OFL text and the font file's SHA-256, because that data is under the font's license, not MIT (see the header of `core/ui/cjk_font_data.c`). Do not use a vendor font that forbids it |
-| Size | A CJK character is 16 px wide and 16 tall, the height of the 8x16 font: 8 characters a line on a 128 px screen, 10 on a 160 px one, 15 on a 240 px one. **A line must be at least 16 px high.** A 240 px color radio draws its words in 8x16 (a CJK build moves its text pages up to that font too) and shows Chinese everywhere; a layout whose words use the 5x8 or 6x12 font (a 128x64 display, and the 160x128 class) has no room for 16 px lines, so those boards list `LANG_ZH` and `LANG_DEFAULT_ZH` in `BOARD_UNSUPPORTED`, and CI's maximal build and the flasher leave the language out there |
-| Cutting | A string too long for its space is cut at the end, whole characters only (`gfx_text_fit_end` for a line that keeps its start, `gfx_text_fit` for a middle cut), because Chinese has no spaces to cut at a middle. A line wraps after any CJK character (`wrap_line`); Latin words inside it still wrap at their spaces |
-| Switch | `CONFIG_LANG_ZH` is off by default. Measure it like any switch and put the bytes in [the feature matrix](../feature-matrix.md) |
+| The face | `tools/cjkfont.py` rasterizes every character the catalogs use into a one-bit glyph per font size and writes the subsets the firmware links (`core/ui/fonts/cjk_*.inc`). A CJK character is a 2-cell glyph at the font's own size, so a subset is generated for each size the layout draws. Run it whenever a translation adds a character (`--check` fails until it does) and commit both |
+| The font | One whose license allows embedding bitmaps: an SIL OFL font such as Noto Sans CJK SC or Source Han Sans. The generated file carries the font's copyright, its full OFL text and the font file's SHA-256, because that data is under the font's license, not MIT (see the header of `core/ui/fonts/cjk_*.inc`). Do not use a vendor font that forbids it |
+| Size | A CJK character is two Latin cells wide and the height of the font that draws it: the subsets are generated per size, so a 6x12 font shows it at 12 px (10 characters a line on a 160 px screen), a 8x16 at 16 px (7 on a 128 px screen), a 12x24 at 24 px (5 on a 240 px one). The 5x8 font has no subset: a layout whose words use it (a 128x64 display) draws Chinese as a box, so the language must stay off there |
+| Cutting | A string too long for its space is cut at the end, whole characters only (the text layer's `fit_end` keeps the start, `gfx_text_fit` a middle cut), because Chinese has no spaces to cut at a middle. A line wraps after any CJK character (`wrap_line`); Latin words inside it still wrap at their spaces |
+| Switch | `CONFIG_LANG_ZH` is off by default, and needs `CONFIG_FONT_CJK`. Measure it like any switch and put the bytes in [the feature matrix](../feature-matrix.md) |
 
 The table in this tree comes from Noto Sans CJK SC 2.004 ([noto-cjk](https://github.com/notofonts/noto-cjk)), rendered
-with Pillow 12.1. Rebuild it with:
+with Pillow 12.1. Rebuild it, once per font size, with:
 
 ```
-python3 tools/cjkfont.py --font NotoSansCJK-Regular.ttc --font-index 2 --weight 0 \
-    --font-name "Noto Sans CJK SC 2.004 (NotoSansCJK-Regular.ttc, index 2)" \
-    --copyright "2014-2021 Adobe (http://www.adobe.com/), with Reserved Font Name 'Source'." \
-    --license LICENSES/OFL-1.1.txt --spdx OFL-1.1 \
-    --po core/ui/lang/zh.po --out-c core/ui/cjk_font_data.c --out-png /tmp/cjk.png
+python3 tools/cjkfont.py --po core/ui/lang/zh.po NotoSansCJKsc-Regular.otf cjk_8x16 \
+    LICENSES/OFL-1.1-Noto.txt OFL-1.1 16x16:12 > core/ui/fonts/cjk_8x16.inc
 ```
 
-`--font-index 2` picks the Simplified Chinese face of a `.ttc` (0 is Japanese). The header records the font file's
-SHA-256: a different hash means a different font file, so say which one you used in the pull request. `--weight` picks
-a variable font's axis; 0 keeps a static face's own weight. A different Pillow can render slightly different bytes;
-commit the table it wrote.
+once per size: `cjk_6x12` at 12x12:9, `cjk_9x18` at 18x18:14, `cjk_12x24` at 24x24:19, `cjk_16x32` at 32x32:26 (a CJK
+character is a full-width cell, so the pixel size is the cell's width; the height and baseline grow from the ink's
+extent, see `tools/cjkfont.py`). Use the OFL-1.1 Noto Sans CJK SC font (`LICENSES/OFL-1.1-Noto.txt`).
+
+The header records the font file's SHA-256: a different hash means a different font file, so say which one you used in
+the pull request. A different Pillow can render slightly different bytes; commit the subsets it wrote.
 
 ### When the source changes
 

@@ -115,29 +115,35 @@ def text_to_bytes(text, where):
 
 
 # A CJK catalog: the Latin fonts have no glyph for it, so the catalog says its text is UTF-8 that the text layer
-# decodes, and the glyphs come from core/ui/cjk_font_data.c, which tools/cjkfont.py builds from the catalogs
+# decodes, and the glyphs come from core/ui/fonts/cjk_*.inc, which tools/cjkfont.py builds from the catalogs
 # themselves. Every other catalog stays one byte a character (ASCII, Latin-1, font.h's glyphs).
 CJK_LANGS = ("zh", "ja", "ko")
 WIDE_HEADER = "X-Glyphs"
 # A CJK catalog names itself in its own script, which a build without the CJK face draws as boxes: this header is the
 # name such a build lists instead (Settings > Display > Language, docs/dev/translating.md)
 LATIN_NAME_HEADER = "X-Language-Name-Latin"
-CJK_TABLE = os.path.join(ROOT, "core", "ui", "cjk_font_data.c")
+CJK_SUBSETS = os.path.join(ROOT, "core", "ui", "fonts")
 cjk_cps = None
 
 
 def cjk_codepoints():
-    """The code points the generated CJK font has; empty when it hasn't been built"""
+    """The code points the generated CJK subset fonts have (the union of core/ui/fonts/cjk_*.inc, one per font size);
+    empty when they haven't been built"""
     global cjk_cps
     if cjk_cps is None:
-        try:
-            with open(CJK_TABLE, encoding="utf-8") as f:
-                src = f.read()
-        except OSError:
-            cjk_cps = frozenset()
-            return cjk_cps
-        m = re.search(r"cjk_font_cp\[\]\s*=\s*\{(.*?)\};", src, re.S)
-        cjk_cps = frozenset(int(v, 16) for v in re.findall(r"0x([0-9A-Fa-f]{1,4})\b", m.group(1))) if m else frozenset()
+        cps = set()
+        for name in os.listdir(CJK_SUBSETS):
+            if not name.startswith("cjk_") or not name.endswith(".inc"):
+                continue
+            try:
+                with open(os.path.join(CJK_SUBSETS, name), encoding="utf-8") as f:
+                    src = f.read()
+            except OSError:
+                continue
+            m = re.search(r"cjk_\w+_cp\[\]\s*=\s*\{(.*?)\};", src, re.S)
+            if m:
+                cps.update(int(v, 16) for v in re.findall(r"0x([0-9A-Fa-f]{1,4})\b", m.group(1)))
+        cjk_cps = frozenset(cps)
     return cjk_cps
 
 
@@ -159,7 +165,7 @@ def text_to_bytes_wide(text, where):
         elif ord(ch) in have:
             out += ch.encode("utf-8")
         elif not have:
-            raise I18nError("%s: %r (U+%04X) has no CJK glyph: build core/ui/cjk_font_data.c with tools/cjkfont.py "
+            raise I18nError("%s: %r (U+%04X) has no CJK glyph: build core/ui/fonts/cjk_*.inc with tools/cjkfont.py "
                     "--po <catalog>" % (where, ch, ord(ch)))
         else:
             raise I18nError("%s: %r (U+%04X) has no CJK glyph: run tools/cjkfont.py --po <catalog> to add it"
