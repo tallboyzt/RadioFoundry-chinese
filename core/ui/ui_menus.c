@@ -5423,7 +5423,7 @@ static const char *about_text(void)
 #endif
 #if CONFIG_LANG_ZH
 	sb_chr(&b, '\n');
-	sb_str(&b, TR(ABOUT_BODY_FONT_NOTO_CJK, "Noto Sans CJK SC font: OFL-1.1"));	// core/ui/cjk_font_data.c
+	sb_str(&b, TR(ABOUT_BODY_FONT_NOTO_CJK, "Noto Sans CJK SC font: OFL-1.1"));	// core/ui/fonts/cjk_*.inc
 #endif
 	sb_chr(&b, '\n');
 	// from the radio's own firmware, not part of RadioFoundry
