@@ -60,3 +60,7 @@ BOARD_NOT_WRITTEN += RX_EXT	# no receive range in its chip documents (a PLL and 
 BOARD_NOT_WRITTEN += P25	# receive isn't written (hardware-md380.md 4.11)
 BOARD_NOT_WRITTEN += P25_TRUNK	# needs P25
 BOARD_NOT_WRITTEN += NXDN	# receive isn't written (hardware-md380.md 4.11)
+# The per-size CJK fonts and the Chinese catalog don't fit with every other feature and language on:
+# ci's maximal configuration leaves them off (the radio still builds Chinese in its own configuration,
+# and the feature matrix shows it as supported)
+MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK

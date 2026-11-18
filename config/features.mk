@@ -168,7 +168,7 @@ CONFIG_FONT_AA ?= n
 CONFIG_FONT_BIG ?= n
 # The CJK subset font: the characters the Chinese catalog draws, one subset per font size (core/ui/fonts/cjk_*.inc,
 # tools/cjkfont.py). A Chinese interface needs it with CONFIG_LANG_ZH=y; a build without it shows those characters as
-# boxes. About 1.5 KB per 50 characters plus the catalog's text
+# boxes. About 150 KB across the five sizes a build links
 CONFIG_FONT_CJK ?= n
 # Spanish on the radio (Settings > Display > Language; core/ui/lang/es.po, docs/dev/translating.md). About 28 KB with
 # the lookup and the accented letters of every font (7.5 KB), which the first language brings; each further one adds

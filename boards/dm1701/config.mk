@@ -15,6 +15,10 @@ MAXIMAL_VARS := LTO=1
 # Left out of tools/ci.sh's maximal configuration: PPP stands in for the USB network adapter on UART-only radios
 # (docs/spec/ppp.md), and this one has the adapter; the APRS iGate is off by default (above)
 MAXIMAL_SKIP := NET_PPP APRS_IGATE
+# The per-size CJK fonts and the Chinese catalog don't fit with every other feature and language on:
+# # ci's maximal configuration leaves them off (the radio still builds Chinese in its own configuration,
+# # and the feature matrix shows it as supported)
+MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK
 # What the radio's hardware can't do, one switch per line with the reason (tools/boards.py checks there is one;
 # docs/build-config.md, "Unsupported, not written, unconfirmed"): ci's maximal configuration leaves these off
 BOARD_UNSUPPORTED += FONT_XL	# the 160x120 panel is too small for the large font (it is for 240 px and wider)

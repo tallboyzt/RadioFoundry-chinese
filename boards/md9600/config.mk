@@ -58,6 +58,10 @@ BOARD_REQUIRED := FM
 # Supported, but the maximal configuration leaves these off too: PPP stands in for the USB network adapter on UART-only
 # radios (docs/spec/ppp.md), and this one has the adapter
 MAXIMAL_SKIP := NET_PPP
+# The per-size CJK fonts and the Chinese catalog don't fit with every other feature and language on:
+# # ci's maximal configuration leaves them off (the radio still builds Chinese in its own configuration,
+# # and the feature matrix shows it as supported)
+MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK
 # English only (the owner's choice, 2026-11-03)
 CONFIG_LANG_ES ?= n
 CONFIG_RX_EXT ?= n

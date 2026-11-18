@@ -30,3 +30,8 @@ BOARD_UNSUPPORTED += NAND_STORAGE	# the data flash is SPI NOR, GD25Q128 class (d
 # written, unconfirmed"): off by default, and off in ci's maximal configuration too
 BOARD_NOT_WRITTEN += VOX	# no hal_power_t.mic_level hook yet
 BOARD_NOT_WRITTEN += AUDIO_PROBE	# no board.audio_tap yet
+# The per-size CJK fonts (FONT_CJK, about 150 KB across the sizes this 240 px panel draws) and the Chinese catalog
+# don't fit with every other feature and language on: the maximal configuration already keeps about 2 KB free, so ci
+# leaves them off there (the radio still builds Chinese in its own configuration, and the feature matrix shows it as
+# supported)
+MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK
