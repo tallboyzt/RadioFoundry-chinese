@@ -79,6 +79,8 @@ int gfx_text(const font_t *f, int x, int y, const char *s, color_t fg);
 // The same with each glyph cell filled with bg first
 int gfx_text_bg(const font_t *f, int x, int y, const char *s, color_t fg, color_t bg);
 int gfx_text_width(const font_t *f, const char *s);
+// True where s carries a full-width (CJK) character, whose cell is taller than f's own
+bool gfx_text_has_cjk(const font_t *f, const char *s);
 // Text alternates (font.h): s with every group at its alternative number level (or its last one) into out; *more says
 // whether a higher level would give something different. Returns the length
 size_t gfx_text_alt(const char *s, int level, char *out, size_t cap, bool *more);

@@ -570,6 +570,21 @@ int gfx_text_width(const font_t *f, const char *s)
 	return w;
 }
 
+// True where a text carries a full-width character: the row that draws it is a CJK cell tall (font_cjk_t.h), not
+// the font's own cell, so a row that can hold both sizes centers them on their own heights
+bool gfx_text_has_cjk(const font_t *f, const char *s)
+{
+	if (f->cjk == NULL)
+		return false;
+	for (const char *p = s; *p; ) {
+		font_glyph_utf8_t g;
+		font_glyph_utf8(f, &p, &g);
+		if (g.w != f->w)
+			return true;
+	}
+	return false;
+}
+
 void gfx_text_fit(const font_t *f, const char *src, int max_w, char *out, size_t out_len)
 {
 	if (out_len == 0)

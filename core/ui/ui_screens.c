@@ -16,6 +16,9 @@
 
 ui_layout_t ui_layout;
 static const font_t *font_largest;	// the large text setting's font (large_font)
+#if CONFIG_FONT_CJK
+static font_t list_cjk_font;	// the list's font in a wide language: small's metrics, its CJK drawn one size up
+#endif
 
 // Colors carry meaning only (P5); every color cue also has a word. On 1 bpp panels everything is ink on paper
 // and pills are inverse video
@@ -214,7 +217,23 @@ void ui_layout_init(void)
 	}
 	L->activity_y = y;
 	L->activity_h = L->hint_y - y;
-	L->row_h = L->small->h + (w >= 220 ? 6 : tall ? 3 : h >= 100 ? 1 : 0);
+	int slack = w >= 220 ? 6 : tall ? 3 : h >= 100 ? 1 : 0;
+	int row_h = L->small->h + slack;
+#if CONFIG_FONT_CJK
+	// A wide language draws the list's CJK one size up, so its strokes are not cramped (the 5x8 font has no subset,
+	// and a font's top one has nothing above it). Its rows grow to that CJK cell's height, with the same slack
+	L->list = L->small;
+	if (lang_wide(lang_current()) && L->small->cjk_up != NULL) {
+		list_cjk_font = *L->small;
+		list_cjk_font.cjk = L->small->cjk_up;
+		L->list = &list_cjk_font;
+		if (L->small->cjk_up->h > L->small->h)
+			row_h = L->small->cjk_up->h + slack;
+	}
+#else
+	L->list = L->small;
+#endif
+	L->row_h = row_h;
 }
 
 // --- shared pieces ---
@@ -3070,7 +3089,7 @@ int ui_list_rows(const ui_list_t *l)
 {
 	int y = list_top(NULL, NULL, l, false);
 	if (l->body != NULL)
-		y = wrap_text(ui_layout.small, l->body, y, y + (ui_layout.hint_y - y) / 2 + ui_layout.small->h, false, 0) + 2;
+		y = wrap_text(ui_layout.list, l->body, y, y + (ui_layout.hint_y - y) / 2 + ui_layout.list->h, false, 0) + 2;
 	int n = (ui_layout.hint_y - y) / ui_layout.row_h;
 	return n < 1 ? 1 : n;
 }
@@ -3078,7 +3097,7 @@ int ui_list_rows(const ui_list_t *l)
 void ui_draw_list(const radio_view_t *v, const ui_state_t *s, const ui_list_t *l)
 {
 	const ui_layout_t *L = &ui_layout;
-	const font_t *f = L->small;
+	const font_t *f = L->list;
 	int w = gfx_width();
 	gfx_clear(ui_col.bg);
 	int y = list_top(v, s, l, true);
@@ -3104,7 +3123,9 @@ void ui_draw_list(const radio_view_t *v, const ui_state_t *s, const ui_list_t *l
 		*l->top = top;
 	if (l->count == 0 && l->empty != NULL)
 		wrap_text(f, l->empty, y + 1, y_end, true, ui_col.dim);
-	int pad = (L->row_h - f->h) / 2;
+	int pad = (L->row_h - f->h) / 2, pad_w = pad;
+	if (f->cjk != NULL)
+		pad_w = (L->row_h - f->cjk->h) / 2;
 	for (int r = 0; r < rows && top + r < l->count; r++) {
 		uint16_t i = (uint16_t)(top + r);
 		ui_item_t it;
@@ -3128,13 +3149,6 @@ void ui_draw_list(const radio_view_t *v, const ui_state_t *s, const ui_list_t *l
 			fg = gfx_bpp() == 1 ? ui_col.bg : (it.flags & UI_ITEM_EDIT) ? ui_col.pill_dark_fg : ui_col.focus_fg;
 			vfg = fg;
 		}
-		int x = 1;
-		if (gfx_bpp() == 1 && !focus)
-			x = gfx_text(f, 0, ry + pad, " ", fg);
-		if (it.num) {
-			char n[3] = { it.num, ' ', 0 };
-			x = gfx_text(f, x, ry + pad, n, focus ? fg : (gfx_bpp() == 1 ? fg : ui_col.dim));
-		}
 		char val[48];
 		if (it.flags & UI_ITEM_EDIT) {
 			sbuf_t b;
@@ -3145,7 +3159,16 @@ void ui_draw_list(const radio_view_t *v, const ui_state_t *s, const ui_list_t *l
 		} else {
 			str_copy(val, sizeof val, it.value);
 		}
-		row_text(f, x, ry + pad, w, it.label, val, fg, vfg, (it.flags & UI_ITEM_PREVIEW) != 0);
+		// A row that draws a CJK character centres that wider cell, the others the font's own
+		int p = (gfx_text_has_cjk(f, it.label) || gfx_text_has_cjk(f, val)) ? pad_w : pad;
+		int x = 1;
+		if (gfx_bpp() == 1 && !focus)
+			x = gfx_text(f, 0, ry + p, " ", fg);
+		if (it.num) {
+			char n[3] = { it.num, ' ', 0 };
+			x = gfx_text(f, x, ry + p, n, focus ? fg : (gfx_bpp() == 1 ? fg : ui_col.dim));
+		}
+		row_text(f, x, ry + p, w, it.label, val, fg, vfg, (it.flags & UI_ITEM_PREVIEW) != 0);
 	}
 	// Scroll marks: more above / below
 	if (top > 0)

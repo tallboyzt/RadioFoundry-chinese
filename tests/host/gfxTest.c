@@ -502,6 +502,52 @@ static void test_cjk_text(void)
 	CHECK(strcmp(fit, GLYPH_ELLIPSIS) == 0);	// no room with the ellipsis: only it
 	gfx_init(&disp);
 }
+
+// The list's rows in a wide language: its Chinese is drawn one size up, so a character's strokes are not cramped,
+// and the rows grow to that cell's height. A narrow language keeps the layout it had. A CJK character takes its
+// own cell's width, not twice the font's
+static void test_cjk_list_rows(void)
+{
+	uint8_t zh = 0;
+	for (uint8_t idx = 0; idx < lang_count(); idx++)
+		if (lang_built(idx) && lang_wide(idx)) { zh = idx; break; }
+	if (!lang_built(zh))
+		return;	// no CJK catalog in this build
+	hal_display_t d = disp;
+	d.inset_top = d.inset_bottom = d.inset_left = d.inset_right = 0;
+	d.width = 240; d.height = 160; d.bpp = 4;	// the 240 px class, a list font with a size above it
+	d.flush_indexed = d_flush_indexed;
+	CHECK(gfx_init(&d));
+	lang_set(zh);
+	ui_layout_init();
+	if (ui_layout.small->cjk_up != NULL) {
+		CHECK(ui_layout.list != ui_layout.small);
+		CHECK(ui_layout.list->h == ui_layout.small->h && ui_layout.list->cjk == ui_layout.small->cjk_up);
+		CHECK(ui_layout.list->cjk->w > ui_layout.small->w && ui_layout.list->cjk->h > ui_layout.small->h);
+		CHECK(ui_layout.row_h == ui_layout.list->cjk->h + 6);
+		CHECK(gfx_text_has_cjk(ui_layout.list, "中") && !gfx_text_has_cjk(ui_layout.list, "Hz"));
+		CHECK(gfx_text_width(ui_layout.list, "中A") == ui_layout.list->cjk->w + ui_layout.list->w);
+		// The row itself: its ink is the bigger cell's tall, so a cramped character is drawn bigger (the list's font
+		// is the one ui_draw_list draws its rows in)
+		gfx_clear(0);
+		gfx_text(ui_layout.list, 2, 2, "中", 1);
+		int top = gfx_height(), bot = -1;
+		for (int yy = 0; yy < ui_layout.row_h; yy++)
+			for (int xx = 0; xx < 2 + ui_layout.list->cjk->w; xx++)
+				if (gfx_get_pixel(xx, yy) != 0) {
+					if (yy < top) top = yy;
+					if (yy > bot) bot = yy;
+				}
+		CHECK(bot - top + 1 > ui_layout.small->cjk->h);
+	} else {
+		CHECK(ui_layout.list == ui_layout.small && ui_layout.row_h == ui_layout.small->h + 6);
+	}
+	lang_set(0);
+	ui_layout_init();
+	CHECK(ui_layout.list == ui_layout.small && ui_layout.row_h == ui_layout.small->h + 6);
+	gfx_init(&disp);
+	ui_layout_init();
+}
 #endif
 
 int main(void)
@@ -670,6 +716,9 @@ int main(void)
 	test_pass_wait();
 	test_idle_pill_contrast();
 	test_big_text();
+#if CONFIG_FONT_CJK
+	test_cjk_list_rows();
+#endif
 	test_hc_strip_white();
 
 	printf(fails ? "# FAILED gfxTest: %d\n" : "# PASSED gfxTest\n", fails);
