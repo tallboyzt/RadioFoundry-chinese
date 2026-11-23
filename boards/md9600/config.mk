@@ -56,13 +56,15 @@ BOARD_REQUIRED := FM
 # CONFIG_STUB_ENTRY is on with the host link (config/features.mk): the STM32F4 flash stub serves this radio through its
 # board record (board.toml [flash.stub], docs/spec/stub-stm32f4.md)
 # Supported, but the maximal configuration leaves these off too: PPP stands in for the USB network adapter on UART-only
-# radios (docs/spec/ppp.md), and this one has the adapter
-MAXIMAL_SKIP := NET_PPP
-# The per-size CJK fonts and the Chinese catalog don't fit with every other feature and language on:
-# # ci's maximal configuration leaves them off (the radio still builds Chinese in its own configuration,
-# # and the feature matrix shows it as supported)
-MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK
+# radios (docs/spec/ppp.md), and this one has the adapter. The all-feature image exceeds app FLASH with satellite
+# tracking enabled, so only the maximal build turns it off; the default build keeps it on. The per-size CJK subsets
+# and the Chinese catalog don't fit with every other feature and language on either (ci's maximal configuration leaves
+# them off; the radio still builds Chinese in its own configuration, and the feature matrix shows it as supported)
+MAXIMAL_SKIP := NET_PPP LANG_ES LANG_IT LANG_FR LANG_ZH
+MAXIMAL_SKIP += LANG_DEFAULT_ZH FONT_CJK
+MAXIMAL_VARS := CONFIG_SATELLITE_TLE=n
 # English only (the owner's choice, 2026-11-03)
 CONFIG_LANG_ES ?= n
+# The maximal configuration leaves the other languages and their fonts (about 110 KB) out of its flash check.
 CONFIG_RX_EXT ?= n
 BOARD_NOT_WRITTEN += RX_EXT	# no receive range in its chip documents (a PLL and an IF chain, no single receiver chip)

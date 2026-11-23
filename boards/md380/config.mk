@@ -12,6 +12,9 @@ CONFIG_DISPLAY_INSET_LEFT ?= 2
 # not written
 CONFIG_FM_TX_TONES ?= n
 CONFIG_DTMF ?= n
+# The signaling tones (user-defined start, end and idle tone chains, about 6.4 KB) don't fit: the default build has
+# about 3 KB left. The plain beeps stay. Supported, so not in BOARD_NOT_WRITTEN: a leaner build can turn it on
+CONFIG_SIG_TONES ?= n
 CONFIG_APRS_RX ?= n
 # SFR needs CRC_MCU_Control, which the HR_C5000 lacks (docs/spec/sfr.md); the split duplex glue is written for the
 # HR_C6000 and HR_C7000 only
@@ -54,13 +57,17 @@ BOARD_NOT_WRITTEN += AUDIO_PROBE	# no board.audio_tap yet
 # mode can't be reached by the web pages
 CONFIG_RX_EXT ?= n
 BOARD_NOT_WRITTEN += RX_EXT	# no receive range in its chip documents (a PLL and an IF chain, no single receiver chip)
+# Chinese needs a CJK glyph for every character it draws (core/ui/fonts/cjk_*.inc): the translation face plus a
+# reviewed list of Chinese names and repeater words, and this 464 KB region is already 99 % full without it. Chinese
+# must not build here (the 720 KB and 880 KB radios carry it)
+BOARD_UNSUPPORTED += LANG_ZH	# the CJK glyphs won't fit beside the default build in 464 KB
+BOARD_UNSUPPORTED += LANG_DEFAULT_ZH	# needs LANG_ZH
 # P25 and NXDN transmit on the HR_C5000's physical layer mode (board.air, hardware-md380.md 4.11), but receive isn't
 # written: the chip gives no physical layer records, and NXDN's receive needs a flat discriminator copy, which this
 # radio isn't known to give the MCU (same section). Off until receive works
 BOARD_NOT_WRITTEN += P25	# receive isn't written (hardware-md380.md 4.11)
 BOARD_NOT_WRITTEN += P25_TRUNK	# needs P25
 BOARD_NOT_WRITTEN += NXDN	# receive isn't written (hardware-md380.md 4.11)
-# The per-size CJK fonts and the Chinese catalog don't fit with every other feature and language on:
-# ci's maximal configuration leaves them off (the radio still builds Chinese in its own configuration,
-# and the feature matrix shows it as supported)
-MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK
+# The per-size CJK subsets don't fit beside the maximal build: ci's maximal configuration leaves them off
+MAXIMAL_SKIP += FONT_CJK
+BOARD_NOT_WRITTEN += NXDN_SCRAMBLER	# needs NXDN

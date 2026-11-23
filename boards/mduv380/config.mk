@@ -14,11 +14,13 @@ CONFIG_DISPLAY_INSET_LEFT ?= 2
 CONFIG_APRS_IGATE ?= n
 MAXIMAL_VARS := LTO=1
 # Left out of tools/ci.sh's maximal configuration: PPP stands in for the USB network adapter on UART-only radios
-# (docs/spec/ppp.md), and this one has the adapter; the APRS iGate is off by default (above)
-MAXIMAL_SKIP := NET_PPP APRS_IGATE
-# The per-size CJK fonts and the Chinese catalog don't fit with every other feature and language on:
-# # ci's maximal configuration leaves them off (the radio still builds Chinese in its own configuration,
-# # and the feature matrix shows it as supported)
+# (docs/spec/ppp.md), and this one has the adapter; the APRS iGate is off by default (above); French, off by
+# default, so that the maximal build keeps satellite tracking and still fits the app region; Chinese stays out too
+# (its per-size CJK subsets don't fit beside the rest)
+MAXIMAL_SKIP := NET_PPP APRS_IGATE LANG_FR
+# The per-size CJK fonts and the Chinese catalog don't fit with every other feature and language on: ci's maximal
+# configuration leaves them off (the radio still builds Chinese in its own configuration, and the feature matrix
+# shows it as supported)
 MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK
 # What the radio's hardware can't do, one switch per line with the reason (tools/boards.py checks there is one;
 # docs/build-config.md, "Unsupported, not written, unconfirmed"): ci's maximal configuration leaves these off
@@ -31,3 +33,8 @@ BOARD_UNSUPPORTED += BCAST_FM	# no broadcast receiver (docs/spec/airband-and-bro
 BOARD_UNSUPPORTED += NAND_STORAGE	# the data flash is a 16 MB SPI NOR (docs/spec/hardware-mduv380.md, the overview)
 BOARD_UNSUPPORTED += VIBRATE	# no vibration motor (docs/user/23-radios.md, What the MD-UV380 lacks)
 BOARD_UNSUPPORTED += FAULT_TRACE	# needs a host UART: the host port is USB, and the one UART is the G models' GPS line
+# Chinese (CONFIG_LANG_ZH): a 160x128 panel is the 160 px class, whose words' font (6x12) has its own CJK subset and
+# whose list draws it one size up (core/ui/ui_screens.c, docs/spec/ui.md 2.5). Off by default like on every radio;
+# the per-size subsets are core/ui/fonts/cjk_*.inc (docs/feature-matrix.md)
+#
+#	make BOARD=mduv380 CONFIG_LANG_ZH=y CONFIG_LANG_DEFAULT_ZH=y CONFIG_FONT_CJK=y

@@ -24,7 +24,9 @@ BOARD_UNSUPPORTED += GPS_SKY	# needs the GPS receiver (above)
 # What the hardware can do but this radio's driver or glue doesn't yet, the same way: off by default, and off in ci's
 # maximal configuration too
 BOARD_NOT_WRITTEN += AUDIO_PROBE	# the probe's audio tap (board.audio_tap) isn't written for this radio
-# The per-size CJK fonts and the Chinese catalog don't fit with every other feature and language on:
-# ci's maximal configuration leaves them off (the radio still builds Chinese in its own configuration,
-# and the feature matrix shows it as supported)
-MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK
+# The per-size CJK subsets don't fit beside the maximal build, and Chinese has no glyphs for the 5x8 words this layout
+# draws (the 128x64 class): ci's maximal configuration leaves them off, and the switch stays unsupported. This is a
+# font and layout gap, not a build-switch or flash one
+MAXIMAL_SKIP += FONT_CJK
+BOARD_UNSUPPORTED += LANG_ZH	# the 128x64 layout draws its words in the 5x8 font, which has no CJK subset
+BOARD_UNSUPPORTED += LANG_DEFAULT_ZH	# needs LANG_ZH

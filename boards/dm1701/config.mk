@@ -1,7 +1,8 @@
 # SPDX-License-Identifier: MIT
 # Copyright (c) 2026 The RadioFoundry Authors
-# DM-1701 feature defaults (config/features.mk lists them all). 720 KB for code and read-only data: flash sectors 3-9;
-# the codec sectors 10 and 11 are never linked into (boards/dm1701/memory.ld, docs/spec/codec-placement.md).
+# DM-1701 feature defaults (config/features.mk lists them all). 720 KB for code and read-only data: flash sectors 3-9,
+# 0x0800C000 to 0x080BFFFF; the codec runs in place in sectors 10 and 11, which the app never links into
+# (boards/dm1701/memory.ld, docs/spec/codec-dm1701.md). docs/feature-matrix.md has the image's size
 # 160x120 display. The fault trace, the large font and LTO follow the platform (platform/stm32f4/config.mk)
 # Safe area: the lens hides about 5 px left and right (bench, 2026-10-09). Top and bottom are 0: the 5 px there were
 # dead space on the radio (owner, 2026-10-11). Left and right stay 5 until checked on the radio the same way
@@ -13,11 +14,13 @@ CONFIG_DISPLAY_INSET_BOTTOM ?= 0
 CONFIG_APRS_IGATE ?= n
 MAXIMAL_VARS := LTO=1
 # Left out of tools/ci.sh's maximal configuration: PPP stands in for the USB network adapter on UART-only radios
-# (docs/spec/ppp.md), and this one has the adapter; the APRS iGate is off by default (above)
-MAXIMAL_SKIP := NET_PPP APRS_IGATE
-# The per-size CJK fonts and the Chinese catalog don't fit with every other feature and language on:
-# # ci's maximal configuration leaves them off (the radio still builds Chinese in its own configuration,
-# # and the feature matrix shows it as supported)
+# (docs/spec/ppp.md), and this one has the adapter; the APRS iGate is off by default (above); French, off by
+# default, so that the maximal build keeps satellite tracking and still fits the app region; Chinese stays out too
+# (its per-size CJK subsets don't fit beside the rest)
+MAXIMAL_SKIP := NET_PPP APRS_IGATE LANG_FR
+# The per-size CJK fonts and the Chinese catalog don't fit with every other feature and language on: ci's maximal
+# configuration leaves them off (the radio still builds Chinese in its own configuration, and the feature matrix
+# shows it as supported)
 MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK
 # What the radio's hardware can't do, one switch per line with the reason (tools/boards.py checks there is one;
 # docs/build-config.md, "Unsupported, not written, unconfirmed"): ci's maximal configuration leaves these off
@@ -32,3 +35,8 @@ BOARD_UNSUPPORTED += VIBRATE	# no vibration motor (docs/user/23-radios.md, What 
 BOARD_UNSUPPORTED += FAULT_TRACE	# needs a host UART: the host port is USB, and the one UART is the GPS line
 # GPS stays on: no module from the factory, but owners fit one on PA10 / PA9 (hardware-dm1701.md 14.2). Detected at run
 # time in the background: a radio without one stops listening after 5 s of silence
+# Chinese (CONFIG_LANG_ZH, docs/build-config.md): the 160 px class draws its words in the 6x12 font, which has its own
+# CJK subset, and the list draws it one size up (core/ui/ui_screens.c, docs/spec/ui.md 2.5). Off by default like on
+# every radio; the per-size subsets are core/ui/fonts/cjk_*.inc (docs/feature-matrix.md)
+#
+#	make BOARD=dm1701 CONFIG_LANG_ZH=y CONFIG_LANG_DEFAULT_ZH=y CONFIG_FONT_CJK=y
