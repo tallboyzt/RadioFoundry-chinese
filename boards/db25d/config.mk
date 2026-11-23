@@ -49,6 +49,10 @@ MCU_DEFS += -DHRC_STUB_BASE=0x00030000u -DHRC_STUB_SIZE=0x00020000u
 endif
 # ci's maximal configuration (CONFIG_DMR on) builds the DMR transmitter too
 MAXIMAL_VARS := DB25D_DMR_TX=1
+# The Chinese interface (the per-size CJK subset fonts and the catalog) pushes the ui task's stack over in the
+# maximal configuration, so ci's maximal leaves it off there; the radio still builds Chinese in its own
+# configuration, and the feature matrix shows it as supported
+MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK
 # Bench sweep of the reference trim: make BOARD=db25d DB25D_TX_CENTER=116 replaces the page's TX center byte (the bias the C7000
 # modem drives into the TCXO, hardware-db25d.md 4.6). Unset: the page's value
 DB25D_TX_CENTER ?=

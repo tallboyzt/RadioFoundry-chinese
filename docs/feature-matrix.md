@@ -155,7 +155,7 @@ is `tools/bringup.py list --radio <id>`.
 | `lang_it` | off | off | off | off | off | off | off | ✕ |
 | `lang_fr` | off | off | off | off | off | off | off | off |
 | `lang_zh` | off | off | ✕ | off | ✕ | off | off | ✕ |
-| `cjk_glyphs` | off | off | off | off | off | off | off | off |
+| `font_cjk` | off | off | off | off | off | off | off | off |
 | `lang_default_es` | off | off | off | off | off | off | off | ✕ |
 | `lang_default_it` | off | off | off | off | off | off | off | ✕ |
 | `lang_default_fr` | off | off | off | off | off | off | off | off |

@@ -543,10 +543,10 @@ spec = "docs/spec/ui.md"
 switch = "LANG_ZH"
 spec = "docs/spec/ui.md"
 
-[feature.cjk_glyphs]
-switch = "CJK_GLYPHS"
+[feature.font_cjk]
+switch = "FONT_CJK"
 spec = "docs/spec/ui.md"
-source = ["core/ui/cjk_font.c", "core/ui/cjk_font_data.c"]
+source = ["core/ui/fonts.c", "core/ui/font.h"]
 
 [feature.lang_default_es]
 switch = "LANG_DEFAULT_ES"
