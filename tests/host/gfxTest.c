@@ -719,7 +719,8 @@ static void test_cjk_list_rows(void)
 		CHECK(gfx_text_has_cjk(ui_layout.list, "中") && !gfx_text_has_cjk(ui_layout.list, "Hz"));
 		CHECK(gfx_text_width(ui_layout.list, "中A") == ui_layout.list->cjk->w + ui_layout.list->w);
 		// The row itself: its ink is the bigger cell's tall, so a cramped character is drawn bigger (the list's font
-		// is the one ui_draw_list draws its rows in)
+		// is the one ui_draw_list draws its rows in). The list's CJK ink must be taller than the same character drawn
+		// in the font's own CJK (its smaller size), or the list would not be drawing it bigger at all.
 		gfx_clear(0);
 		gfx_text(ui_layout.list, 2, 2, "中", 1);
 		int top = gfx_height(), bot = -1;
@@ -729,7 +730,17 @@ static void test_cjk_list_rows(void)
 					if (yy < top) top = yy;
 					if (yy > bot) bot = yy;
 				}
-		CHECK(bot - top + 1 > ui_layout.small->cjk->h);
+		int list_ink = bot - top + 1;
+		gfx_clear(0);
+		gfx_text(ui_layout.small, 2, 2, "中", 1);
+		top = gfx_height(); bot = -1;
+		for (int yy = 0; yy < ui_layout.small->cjk->h; yy++)
+			for (int xx = 0; xx < 2 + ui_layout.small->cjk->w; xx++)
+				if (gfx_get_pixel(xx, yy) != 0) {
+					if (yy < top) top = yy;
+					if (yy > bot) bot = yy;
+				}
+		CHECK(list_ink > bot - top + 1);
 	} else {
 		CHECK(ui_layout.list == ui_layout.small && ui_layout.row_h == ui_layout.small->h + 6);
 	}

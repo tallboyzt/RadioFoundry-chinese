@@ -43,3 +43,9 @@ BOARD_NOT_WRITTEN += AUDIO_PROBE	# no board.audio_tap yet
 # leaves them off there (the radio still builds Chinese in its own configuration, and the feature matrix shows it as
 # supported)
 MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK
+# The Chinese image also doesn't fit with the big niche features on (SATELLITE_TLE alone is about 33 KB of the
+# 880 KB app region): the fork leaves them off by default so a Chinese image fits. The maximal configuration
+# (which leaves Chinese off) turns them back on where they fit.
+CONFIG_SATELLITE_TLE ?= n
+CONFIG_NET_RADIO_UDP ?= n
+CONFIG_SIG_TONES ?= n
