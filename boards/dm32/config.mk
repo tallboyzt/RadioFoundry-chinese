@@ -43,9 +43,17 @@ BOARD_NOT_WRITTEN += AUDIO_PROBE	# no board.audio_tap yet
 # leaves them off there (the radio still builds Chinese in its own configuration, and the feature matrix shows it as
 # supported)
 MAXIMAL_SKIP += LANG_ZH LANG_DEFAULT_ZH FONT_CJK
-# The Chinese image also doesn't fit with the big niche features on (SATELLITE_TLE alone is about 33 KB of the
-# 880 KB app region): the fork leaves them off by default so a Chinese image fits. The maximal configuration
-# (which leaves Chinese off) turns them back on where they fit.
-CONFIG_SATELLITE_TLE ?= n
+# The Chinese image also doesn't fit the 880 KB app region with every feature and language on. The fork leaves the
+# niche features off by default so a Chinese image fits: SATELLITE_TLE is on (about 33 KB; features.mk's default
+# turns it on with the debug link, which the radio has), but NET_RADIO_UDP and SIG_TONES are off, and so are the
+# crash log (CRASH_LOG and its screen and report), the diagnostics page (DIAG), the Spanish catalog (LANG_ES) and
+# the support page (SUPPORT_INFO) — together about 22 KB. The maximal configuration (which leaves Chinese off) turns
+# them all back on where they fit.
 CONFIG_NET_RADIO_UDP ?= n
 CONFIG_SIG_TONES ?= n
+CONFIG_CRASH_LOG ?= n
+CONFIG_CRASH_SCREEN ?= n
+CONFIG_CRASH_REPORT ?= n
+CONFIG_DIAG ?= n
+CONFIG_LANG_ES ?= n
+CONFIG_SUPPORT_INFO ?= n

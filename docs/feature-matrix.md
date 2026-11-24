@@ -84,7 +84,7 @@ is `tools/bringup.py list --radio <id>`.
 | `signaling_tones` | off | not recorded | not recorded | not recorded | off | not recorded | not recorded | not recorded |
 | `vibrate` | off | ✕ | not recorded | ✕ | ✕ | ✕ | ✕ | ✕ |
 | `gps` | pass (seed) | not recorded | ✕ | not recorded | not recorded | not recorded | not recorded | ✕ |
-| `satellite_tle` | off | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
+| `satellite_tle` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
 | `gps_icon` | not recorded | not recorded | ✕ | not recorded | not recorded | not recorded | not recorded | ✕ |
 | `position` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run |
 | `dmr_data_rx` | not recorded | pass (seed) | pass (seed) | not recorded | not recorded | not recorded | pass, needs re-run | pass, needs re-run |
@@ -113,11 +113,11 @@ is `tools/bringup.py list --radio <id>`.
 | `cps_openfw` | not recorded | pass (seed) | not recorded | pass (seed) | pass (seed) | not recorded | pass, needs re-run | pass, needs re-run |
 | `cps_fast` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
 | `stub_entry` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
-| `crash_log` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass | pass |
-| `crash_screen` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | ✕ |
-| `crash_report` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | ✕ |
+| `crash_log` | off | not recorded | not recorded | not recorded | not recorded | not recorded | pass | pass |
+| `crash_screen` | off | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | ✕ |
+| `crash_report` | off | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | ✕ |
 | `watchdog` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass | pass |
-| `support_info` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
+| `support_info` | off | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded |
 | `fault_trace` | not recorded | ✕ | not recorded | not recorded | ✕ | ✕ | ✕ | not recorded |
 | `usb_network` | ✕ | pass (seed) | ✕ | ✕ | not recorded | not recorded | pass, needs re-run | ✕ |
 | `usb_serial_request` | off | not recorded | off | off | not recorded | not recorded | not recorded | off |
@@ -145,13 +145,13 @@ is `tools/bringup.py list --radio <id>`.
 | `key_lock` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | ✕ |
 | `channel_knob` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass | pass |
 | `ui_settings` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | partial, needs re-run | ✕ |
-| `diag` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | ✕ |
+| `diag` | off | not recorded | not recorded | not recorded | not recorded | not recorded | pass, needs re-run | ✕ |
 | `backlight_test` | off | off | off | off | off | off | off | ✕ |
 | `ui_color` | not recorded | not recorded | ✕ | not recorded | not recorded | not recorded | ✕ | ✕ |
 | `font_xl` | not recorded | ✕ | ✕ | ✕ | ✕ | ✕ | ✕ | ✕ |
 | `font_aa` | not recorded | off | off | off | off | off | ✕ | ✕ |
 | `font_big` | not recorded | ✕ | ✕ | ✕ | ✕ | ✕ | ✕ | ✕ |
-| `lang_es` | not recorded | not recorded | not recorded | not recorded | not recorded | not recorded | off | ✕ |
+| `lang_es` | off | not recorded | not recorded | not recorded | not recorded | not recorded | off | ✕ |
 | `lang_it` | off | off | off | off | off | off | off | ✕ |
 | `lang_fr` | off | off | off | off | off | off | off | off |
 | `lang_zh` | off | off | ✕ | off | ✕ | off | off | ✕ |
@@ -249,13 +249,13 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | `VFO` | ● | ● | ● | ● | ● | ● | ● | ✕ |
 | `VFO_FM` | ● | ● | ● | ● | ● | ● | ● | ✕ |
 | `VFO_DMR` | ● | ● | ● | ● | ● | ● | ● | ✕ |
-| `DIAG` | ● | ● | ● | ● | ● | ● | ● | ✕ |
+| `DIAG` | ○ | ● | ● | ● | ● | ● | ● | ✕ |
 | `BACKLIGHT_TEST` | ○ | ○ | ○ | ○ | ○ | ○ | ○ | ✕ |
 | `FONT_XL` | ● | ✕ | ✕ | ✕ | ✕ | ✕ | ✕ | ✕ |
 | `FONT_AA` | ● | ○ | ○ | ○ | ○ | ○ | ✕ | ✕ |
 | `FONT_BIG` | ● | ✕ | ✕ | ✕ | ✕ | ✕ | ✕ | ✕ |
 | `FONT_CJK` | ○ | ○ | ○ | ○ | ○ | ○ | ○ | ○ |
-| `LANG_ES` | ● | ● | ● | ● | ● | ● | ○ | ✕ |
+| `LANG_ES` | ○ | ● | ● | ● | ● | ● | ○ | ✕ |
 | `LANG_IT` | ○ | ○ | ○ | ○ | ○ | ○ | ○ | ✕ |
 | `LANG_FR` | ○ | ○ | ○ | ○ | ○ | ○ | ○ | ○ |
 | `LANG_ZH` | ○ | ○ | ✕ | ○ | ✕ | ○ | ○ | ✕ |
@@ -280,11 +280,11 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | `AUDIO_PROBE` | … | ○ | … | … | … | ○ | ○ | … |
 | `STUB_ENTRY` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `NAND_STORAGE` | ✕ | ✕ | ✕ | ● | ✕ | ✕ | ✕ | ✕ |
-| `CRASH_LOG` | ● | ● | ● | ● | ● | ● | ● | ● |
-| `CRASH_SCREEN` | ● | ● | ● | ● | ● | ● | ● | ✕ |
-| `CRASH_REPORT` | ● | ● | ● | ● | ● | ● | ● | ✕ |
+| `CRASH_LOG` | ○ | ● | ● | ● | ● | ● | ● | ● |
+| `CRASH_SCREEN` | ○ | ● | ● | ● | ● | ● | ● | ✕ |
+| `CRASH_REPORT` | ○ | ● | ● | ● | ● | ● | ● | ✕ |
 | `WATCHDOG` | ● | ● | ● | ● | ● | ● | ● | ● |
-| `SUPPORT_INFO` | ● | ● | ● | ● | ● | ● | ● | ● |
+| `SUPPORT_INFO` | ○ | ● | ● | ● | ● | ● | ● | ● |
 | `FAULT_TRACE` | ● | ✕ | ● | ● | ✕ | ✕ | ✕ | ● |
 | `AM_RX` | ● | ✕ | ● | ✕ | ✕ | ✕ | ✕ | ✕ |
 | `BCAST_FM` | ● | ✕ | ● | … | ✕ | ✕ | ✕ | ✕ |
@@ -294,7 +294,7 @@ clock`; ? = not known yet). No driver reads the clock yet ([radio-features.md](s
 | `APRS_RX` | ● | ● | ● | … | … | ● | ● | ● |
 | `APRS_IGATE` | ● | ○ | ● | … | … | ○ | ● | ● |
 | `GPS_SKY` | ● | ● | ✕ | ● | ● | ● | ● | ✕ |
-| `SATELLITE_TLE` | ○ | ● | ● | ● | ● | ● | ● | ● |
+| `SATELLITE_TLE` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `KEY_ASSIGN` | ● | ● | ● | ● | ● | ● | ● | ● |
 | `CHANNEL_LIST` | ● | ● | ● | ● | ● | ● | ● | ✕ |
 | `CHANNEL_EDIT` | ● | ● | ● | ● | ● | ● | ● | ✕ |
